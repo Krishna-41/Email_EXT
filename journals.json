@@ -1,0 +1,1347 @@
+[
+ {
+  "name": "Elsevier",
+  "url": "https://www.elsevier.com/",
+  "category": "General"
+ },
+ {
+  "name": "Wiley",
+  "url": "https://www.wiley.com/en-us",
+  "category": "General"
+ },
+ {
+  "name": "Springer",
+  "url": "https://www.springer.com/us",
+  "category": "General"
+ },
+ {
+  "name": "Taylor & Francis",
+  "url": "https://www.taylorfrancis.com/",
+  "category": "General"
+ },
+ {
+  "name": "SAGE Publications",
+  "url": "https://journals.sagepub.com/",
+  "category": "General"
+ },
+ {
+  "name": "American Chemical Society (ACS) Publications",
+  "url": "https://pubs.acs.org/?utm_source=elqua&utm_medium=web&utm_campaign=PubsLogoElqLP&src=PubsLogoElqLP&elqTrackId=8d5c373d0d304109b7058bc2597f000b&elq=00000000000000000000000000000000&elqaid=5241&elqat=2&elqCampaignId=&elqcst=272&elqcsid=2265&_gl=1*1xo013z*_ga*MTYwOTYxNjc1Mi4xNzE0Mzg5ODQ4*_ga_DBBDZLFD3P*MTcxNDM4OTg0Ny4xLjAuMTcxNDM4OTg0Ny42MC4wLjA.",
+  "category": "General"
+ },
+ {
+  "name": "Oxford University Press (OUP)",
+  "url": "https://academic.oup.com/journals",
+  "category": "General"
+ },
+ {
+  "name": "Public Library of Science (PLOS)",
+  "url": "https://plos.org/",
+  "category": "General"
+ },
+ {
+  "name": "Mary Ann Liebert, Inc. Publishers",
+  "url": "https://home.liebertpub.com/publications/a-z",
+  "category": "General"
+ },
+ {
+  "name": "IEEE Xplore Digital Library",
+  "url": "https://ieeexplore.ieee.org/browse/periodicals/topic",
+  "category": "General"
+ },
+ {
+  "name": "American Association for the Advancement of Science (AAAS) Journals",
+  "url": "https://www.aaas.org/journals",
+  "category": "General"
+ },
+ {
+  "name": "National Academy of Sciences (NAS) Journals",
+  "url": "https://www.pnas.org/",
+  "category": "General"
+ },
+ {
+  "name": "Royal Society of Chemistry (RSC) Publishing",
+  "url": "https://www.rsc.org/journals-books-databases/about-journals/journals-a-z/",
+  "category": "General"
+ },
+ {
+  "name": "MIT Press Journals",
+  "url": "https://direct.mit.edu/journals/pages/open-access",
+  "category": "General"
+ },
+ {
+  "name": "American Physical Society (APS) Journals:",
+  "url": "https://www.aps.org/",
+  "category": "General"
+ },
+ {
+  "name": "Rockefeller University Press",
+  "url": "https://rupress.org/",
+  "category": "General"
+ },
+ {
+  "name": "American Society of Civil Engineers (ASCE) Journals",
+  "url": "https://ascelibrary.org/journals?pageSize=20&startPage=1",
+  "category": "General"
+ },
+ {
+  "name": "American Society for Microbiology (ASM) Journals",
+  "url": "https://journals.asm.org/",
+  "category": "General"
+ },
+ {
+  "name": "American Society for Cell Biology (ASCB) Journals:",
+  "url": "https://www.ascb.org/",
+  "category": "General"
+ },
+ {
+  "name": "American Association for Cancer Research (AACR) Journals:",
+  "url": "https://aacrjournals.org/",
+  "category": "General"
+ },
+ {
+  "name": "American Association of Immunologists (AAI) Journals:",
+  "url": "https://journals.aai.org/",
+  "category": "General"
+ },
+ {
+  "name": "American Society for Biochemistry and Molecular Biology (ASBMB) Journals",
+  "url": "https://www.asbmb.org/journals-news/journal-of-biological-chemistry",
+  "category": "General"
+ },
+ {
+  "name": "Society for Nutrition Education and Behavior (SNEB) Journals",
+  "url": "https://www.jandonline.org/",
+  "category": "General"
+ },
+ {
+  "name": "American Academy of Neurology (AAN) Journals",
+  "url": "https://www.neurology.org/",
+  "category": "General"
+ },
+ {
+  "name": "American Society of Clinical Oncology (ASCO) Journals",
+  "url": "https://ascopubs.org/",
+  "category": "General"
+ },
+ {
+  "name": "De Gruyter",
+  "url": "https://www.degruyter.com/",
+  "category": "General"
+ },
+ {
+  "name": "Brill Publishers",
+  "url": "https://brill.com/subject/LS",
+  "category": "General"
+ },
+ {
+  "name": "Hindawi",
+  "url": "https://www.hindawi.com/journals/",
+  "category": "General"
+ },
+ {
+  "name": "Ubiquity Press",
+  "url": "https://www.ubiquitypress.com/site/journals/",
+  "category": "General"
+ },
+ {
+  "name": "Wellcome Open Research",
+  "url": "https://wellcomeopenresearch.org/",
+  "category": "General"
+ },
+ {
+  "name": "EDP Sciences",
+  "url": "https://www.edpsciences.org/en/",
+  "category": "General"
+ },
+ {
+  "name": "Nature Research",
+  "url": "https://www.nature.com/",
+  "category": "General"
+ },
+ {
+  "name": "IOS Press",
+  "url": "https://www.iospress.com/catalog?f%5B0%5D=access%3A1&f%5B1%5D=type%3Ajournal",
+  "category": "General"
+ },
+ {
+  "name": "Institute of Physics (IOP) Publishing",
+  "url": "https://iopscience.iop.org/journalList",
+  "category": "General"
+ },
+ {
+  "name": "The Company of Biologists Ltd",
+  "url": "https://www.biologists.com/",
+  "category": "General"
+ },
+ {
+  "name": "European Society of Human Reproduction and Embryology",
+  "url": "https://www.eshre.eu/Publications/Journals",
+  "category": "General"
+ },
+ {
+  "name": "Emerald Publishing",
+  "url": "https://www.emeraldgrouppublishing.com/publish-with-us/publish-in-a-journal/find-a-journal",
+  "category": "General"
+ },
+ {
+  "name": "Karger",
+  "url": "https://karger.com/pages/journal-portfolio?r=1&type=subscription|openaccess#",
+  "category": "General"
+ },
+ {
+  "name": "Hogrefe",
+  "url": "https://www.hogrefe.com/eu/journals",
+  "category": "General"
+ },
+ {
+  "name": "Copernicus Publications",
+  "url": "https://publications.copernicus.org/open-access_journals/open_access_journals_c_g.html",
+  "category": "General"
+ },
+ {
+  "name": "World Scientific Publishing Co Pte Ltd",
+  "url": "https://www.worldscientific.com/page/wsjournals",
+  "category": "General"
+ },
+ {
+  "name": "AME Publishing",
+  "url": "https://apply.amegroups.com/",
+  "category": "General"
+ },
+ {
+  "name": "mendeley data",
+  "url": "https://data.mendeley.com/research-data/?from=2018&search=GYNECOLOGY",
+  "category": "General"
+ },
+ {
+  "name": "The Lancent",
+  "url": "https://www.thelancet.com/",
+  "category": "General"
+ },
+ {
+  "name": "Bilingual Publishing Group",
+  "url": "https://journals.bilpubgroup.com/index.php?categoy=9",
+  "category": "General"
+ },
+ {
+  "name": "HSPIOA",
+  "url": "https://www.hspioa.org/journals",
+  "category": "General"
+ },
+ {
+  "name": "Open Exploration Publishing Inc.",
+  "url": "https://www.explorationpub.com/Index/AllJournals",
+  "category": "General"
+ },
+ {
+  "name": "MIT Press",
+  "url": "https://direct.mit.edu/journals/pages/browse_by_title",
+  "category": "General"
+ },
+ {
+  "name": "OAE Publishing Inc",
+  "url": "https://www.oaepublish.com/alljournals",
+  "category": "General"
+ },
+ {
+  "name": "Sci Forschen Inc",
+  "url": "https://sciforschenonline.org/journals/clinical-research/vural-fidan.php",
+  "category": "General"
+ },
+ {
+  "name": "Scientific Research Publishing Inc.",
+  "url": "https://www.scirp.org/journal/",
+  "category": "General"
+ },
+ {
+  "name": "LIDSEN Publishing Inc",
+  "url": "https://www.lidsen.com/journals",
+  "category": "General"
+ },
+ {
+  "name": "IMR Press",
+  "url": "https://www.imrpress.com/",
+  "category": "General"
+ },
+ {
+  "name": "Longdom Publishing",
+  "url": "https://www.longdom.org/journals-by-title.html",
+  "category": "General"
+ },
+ {
+  "name": "CMJ Publishers",
+  "url": "https://www.cmjpublishers.com/journals-page/",
+  "category": "General"
+ },
+ {
+  "name": "ASRJS",
+  "url": "https://www.asrjs.com/all-journals",
+  "category": "General"
+ },
+ {
+  "name": "SciVision Publishers",
+  "url": "https://www.scivisionpub.com/all-journals",
+  "category": "General"
+ },
+ {
+  "name": "Prime Scholars",
+  "url": "https://www.primescholars.com/open-access-journals-list.html",
+  "category": "General"
+ },
+ {
+  "name": "SOAOJ International Publishers",
+  "url": "https://soaoj.com/journals/",
+  "category": "General"
+ },
+ {
+  "name": "Gavin Publishers",
+  "url": "https://www.gavinpublishers.com/journals/?_gl=1*kntjuf*_ga*MTgwODI4NDc0OS4xNzE3NDk4MzA4*_ga_H3L5D4V9XX*MTcxNzQ5ODMwOC4xLjAuMTcxNzQ5ODMwOS41OS4wLjA.*_gcl_au*MTI1MTI3MzY3MS4xNzE3NDk4MzA4",
+  "category": "General"
+ },
+ {
+  "name": "Mathews Open Access Journals",
+  "url": "https://www.mathewsopenaccess.com/",
+  "category": "General"
+ },
+ {
+  "name": "OPAST GROUP",
+  "url": "https://www.opastpublishers.com/international-publisher/open-access-journals.html",
+  "category": "General"
+ },
+ {
+  "name": "JSM Central",
+  "url": "https://www.jsmcentral.org/journals.php",
+  "category": "General"
+ },
+ {
+  "name": "Remedy Publications",
+  "url": "https://remedypublications.com/",
+  "category": "General"
+ },
+ {
+  "name": "Auctores Online",
+  "url": "https://auctoresonline.org/journals",
+  "category": "General"
+ },
+ {
+  "name": "Scilit",
+  "url": "https://www.scilit.net/publications",
+  "category": "General"
+ },
+ {
+  "name": "Medtext Publications",
+  "url": "https://www.medtextpublications.com/open-access-journals.php",
+  "category": "General"
+ },
+ {
+  "name": "SciTechnol",
+  "url": "https://www.scitechnol.com/subscription-journals-list.php",
+  "category": "General"
+ },
+ {
+  "name": "informahealthcare.com",
+  "url": "https://informahealthcare.com/action/showPublications?pubType=journal",
+  "category": "General"
+ },
+ {
+  "name": "Symbiosis Group LLC",
+  "url": "https://symbiosisonlinepublishing.com/",
+  "category": "General"
+ },
+ {
+  "name": "Wolters Kluwer Health",
+  "url": "https://www.wolterskluwer.com/en/solutions/lippincott-journals/author-resources/journals",
+  "category": "General"
+ },
+ {
+  "name": "ANSI net",
+  "url": "https://www.ansinet.com/journals.php",
+  "category": "General"
+ },
+ {
+  "name": "IBIMA Publishing",
+  "url": "https://ibimapublishing.com/journals/",
+  "category": "General"
+ },
+ {
+  "name": "MedPress Publications",
+  "url": "https://medpresspublications.com/journals.php#gsc.tab=0",
+  "category": "General"
+ },
+ {
+  "name": "Scient Open Access",
+  "url": "https://scientonline.org/journals/",
+  "category": "General"
+ },
+ {
+  "name": "MedCrave Group",
+  "url": "https://medcraveonline.com/journals",
+  "category": "General"
+ },
+ {
+  "name": "Biores Scientia",
+  "url": "https://bioresscientia.com/journals",
+  "category": "General"
+ },
+ {
+  "name": "Heighten Science Publications Inc",
+  "url": "https://www.hspioa.org/journals",
+  "category": "General"
+ },
+ {
+  "name": "Elmer Press",
+  "url": "https://www.elmerpress.com/journals",
+  "category": "General"
+ },
+ {
+  "name": "Juniper Publishers Journals",
+  "url": "https://juniperpublishers.com/journals.php",
+  "category": "General"
+ },
+ {
+  "name": "Allied Academies",
+  "url": "https://www.alliedacademies.org/journals.php",
+  "category": "General"
+ },
+ {
+  "name": "Enliven Archive",
+  "url": "https://www.enlivenarchive.org/open-access-journals.php",
+  "category": "General"
+ },
+ {
+  "name": "Edizioni Minerva Medica",
+  "url": "https://www.minervamedica.it/en/journals/index.php",
+  "category": "General"
+ },
+ {
+  "name": "Fortune Journals",
+  "url": "https://www.fortunejournals.com/journals.php",
+  "category": "General"
+ },
+ {
+  "name": "OAT",
+  "url": "https://oatext.com/journals.php",
+  "category": "General"
+ },
+ {
+  "name": "Sryahwa Publications",
+  "url": "https://sryahwapublications.com/journals",
+  "category": "General"
+ },
+ {
+  "name": "Internet Scientific Publications",
+  "url": "https://ispub.com/journals",
+  "category": "General"
+ },
+ {
+  "name": "Ommega",
+  "url": "https://www.ommegaonline.org/journals",
+  "category": "General"
+ },
+ {
+  "name": "Iris Publishers",
+  "url": "https://irispublishers.com/journals.php",
+  "category": "General"
+ },
+ {
+  "name": "European Medical Group",
+  "url": "https://www.emjreviews.com/journals/?site_version=EMJ",
+  "category": "General"
+ },
+ {
+  "name": "Research Open World",
+  "url": "https://researchopenworld.com/about-us/#",
+  "category": "General"
+ },
+ {
+  "name": "Global Science Library",
+  "url": "https://globalsciencelibrary.com/journal",
+  "category": "General"
+ },
+ {
+  "name": "MedDocs Publishers",
+  "url": "https://meddocsonline.org/journals.html",
+  "category": "General"
+ },
+ {
+  "name": "Uniscience Publisher",
+  "url": "https://unisciencepub.com/journals/",
+  "category": "General"
+ },
+ {
+  "name": "ARC Publications",
+  "url": "https://www.arcjournals.org/journals-by-title",
+  "category": "General"
+ },
+ {
+  "name": "Türkiye Klinikleri JOURNALS",
+  "url": "https://www.turkiyeklinikleri.com/publications/en-index.html",
+  "category": "General"
+ },
+ {
+  "name": "Austin Publications",
+  "url": "https://austinpublishinggroup.com/browse-journals.php",
+  "category": "General"
+ },
+ {
+  "name": "eSciPub",
+  "url": "https://escipub.com/all-journals/",
+  "category": "General"
+ },
+ {
+  "name": "Science Repository",
+  "url": "https://www.sciencerepository.org/journals",
+  "category": "General"
+ },
+ {
+  "name": "Science Excel",
+  "url": "https://www.sciencexcel.com/journal",
+  "category": "General"
+ },
+ {
+  "name": "Scholarena",
+  "url": "https://www.scholarena.org/list-of-open-access-journals.php",
+  "category": "General"
+ },
+ {
+  "name": "Cosmos Scholars Publishing House",
+  "url": "https://cosmosscholars.com/",
+  "category": "General"
+ },
+ {
+  "name": "Galenos",
+  "url": "https://galenos.com.tr/journals",
+  "category": "General"
+ },
+ {
+  "name": "Indonesian Medical Research Organization",
+  "url": "https://phlox.or.id/",
+  "category": "General"
+ },
+ {
+  "name": "Bio-Byword Scientific Publishing",
+  "url": "https://ojs.bbwpublisher.com/",
+  "category": "General"
+ },
+ {
+  "name": "ZENTIME PUBLISHING",
+  "url": "https://www.zentimepublishing.com/home/",
+  "category": "General"
+ },
+ {
+  "name": "Openventio Publisher",
+  "url": "https://openventio.org/open-journals/",
+  "category": "General"
+ },
+ {
+  "name": "AME Publishing Company.",
+  "url": "https://www.amegroups.com/",
+  "category": "General"
+ },
+ {
+  "name": "Mebas Medikal Press Publication",
+  "url": "https://www.medicalnetwork.com.tr/",
+  "category": "General"
+ },
+ {
+  "name": "iMedPub",
+  "url": "https://www.imedpub.com/journals.php",
+  "category": "General"
+ },
+ {
+  "name": "Scientific & Academic Publishing",
+  "url": "https://www.sapub.org/Journal/alljournalslist.aspx",
+  "category": "General"
+ },
+ {
+  "name": "Medcial Research",
+  "url": "http://medicalresearch.be/",
+  "category": "General"
+ },
+ {
+  "name": "Jaypee Journals",
+  "url": "https://www.jaypeejournals.com/searchByBrowse",
+  "category": "General"
+ },
+ {
+  "name": "Medwin Publishers",
+  "url": "https://medwinpublishers.com/journals.php",
+  "category": "General"
+ },
+ {
+  "name": "Medical Health Academy",
+  "url": "https://medihealthacademy.com/",
+  "category": "General"
+ },
+ {
+  "name": "Scitech Central",
+  "url": "https://www.scitcentral.com/atozJournals.php",
+  "category": "General"
+ },
+ {
+  "name": "Scholars Middle East Publishers",
+  "url": "https://saudijournals.com/journals/",
+  "category": "General"
+ },
+ {
+  "name": "Special Journals",
+  "url": "https://www.spparenet.org/special-journals/",
+  "category": "General"
+ },
+ {
+  "name": "International Scholars Journals",
+  "url": "https://internationalscholarsjournals.org/journals",
+  "category": "General"
+ },
+ {
+  "name": "Sci Forschen",
+  "url": "https://www.sciforschenonline.org/journals.php",
+  "category": "General"
+ },
+ {
+  "name": "Baishideng Publishing Group",
+  "url": "https://www.wjgnet.com/bpg/journals.htm",
+  "category": "General"
+ },
+ {
+  "name": "Graphy Publications",
+  "url": "https://www.graphyonline.com/browse_by_publication.php",
+  "category": "General"
+ },
+ {
+  "name": "Red Flower Publishers",
+  "url": "https://rfppl.co.in/all_journal.php?mid=3&status=1",
+  "category": "General"
+ },
+ {
+  "name": "Crimson Publishers",
+  "url": "https://crimsonpublishers.com/index.php",
+  "category": "General"
+ },
+ {
+  "name": "Verizona Publishers",
+  "url": "http://verizonaonlinepublishing.com/EditorialBoard.aspx",
+  "category": "General"
+ },
+ {
+  "name": "JSciMed Central",
+  "url": "https://www.jscimedcentral.com/journals",
+  "category": "General"
+ },
+ {
+  "name": "e-Century Publishing Corporation",
+  "url": "https://e-century.us/web/",
+  "category": "General"
+ },
+ {
+  "name": "Edorium Journals",
+  "url": "https://www.edoriumjournals.com/open-access-journals/",
+  "category": "General"
+ },
+ {
+  "name": "The Publishing House",
+  "url": "https://www.phdynasty.ru/",
+  "category": "General"
+ },
+ {
+  "name": "Med",
+  "url": "https://lib.medvestnik.ru/releases",
+  "category": "General"
+ },
+ {
+  "name": "KISTI.",
+  "url": "http://kpubs.org/journal/journalA2zList.kpubs",
+  "category": "General"
+ },
+ {
+  "name": "Sci Journal",
+  "url": "https://www.scijournal.org/search.html?search=infectious#google_vignette",
+  "category": "General"
+ },
+ {
+  "name": "Hans Publishers",
+  "url": "https://www.hanspub.org/AllSubjects",
+  "category": "General"
+ },
+ {
+  "name": "Medires Online",
+  "url": "https://www.mediresonline.org/journals",
+  "category": "General"
+ },
+ {
+  "name": "ECO-VECTOR",
+  "url": "https://journals.eco-vector.com/",
+  "category": "General"
+ },
+ {
+  "name": "Scientia Ricerca",
+  "url": "https://scientiaricerca.com/journals.php",
+  "category": "General"
+ },
+ {
+  "name": "Japan Science and Technology Agency",
+  "url": "https://www.jstage.jst.go.jp/browse/-char/ja",
+  "category": "General"
+ },
+ {
+  "name": "Lupine Publishers",
+  "url": "https://lupinepublishers.com/journals.php",
+  "category": "General"
+ },
+ {
+  "name": "Open Access Pub",
+  "url": "https://openaccesspub.org/all-journals",
+  "category": "General"
+ },
+ {
+  "name": "Aries Systems Corporation",
+  "url": "https://www.ariessys.com/journals-list/",
+  "category": "General"
+ },
+ {
+  "name": "Clarivate",
+  "url": "https://mjl.clarivate.com/home",
+  "category": "General"
+ },
+ {
+  "name": "IOP Science",
+  "url": "https://ioppublishing.org/",
+  "category": "General"
+ },
+ {
+  "name": "Scholars Portal Journals",
+  "url": "https://journals.scholarsportal.info/",
+  "category": "General"
+ },
+ {
+  "name": "Royal Society of Chemistry",
+  "url": "https://pubs.rsc.org/en/journals?key=title&value=current",
+  "category": "General"
+ },
+ {
+  "name": "KeAi",
+  "url": "https://www.keaipublishing.com/en/journals/",
+  "category": "General"
+ },
+ {
+  "name": "Academic Journals",
+  "url": "https://journals.tubitak.gov.tr/communities.html",
+  "category": "General"
+ },
+ {
+  "name": "World Scientific",
+  "url": "https://www.worldscientific.com/page/wsjournals",
+  "category": "General"
+ },
+ {
+  "name": "Universal Wiser Publisher",
+  "url": "https://www.wiserpub.com/journals.html",
+  "category": "General"
+ },
+ {
+  "name": "Frontier Scientific Publishing",
+  "url": "https://front-sci.com/journal/",
+  "category": "General"
+ },
+ {
+  "name": "EnPress Publisher",
+  "url": "https://systems.enpress-publisher.com/",
+  "category": "General"
+ },
+ {
+  "name": "Academic Publishing",
+  "url": "https://ojs.acad-pub.com/",
+  "category": "General"
+ },
+ {
+  "name": "SyncSci Publishing Pte Ltd",
+  "url": "https://www.syncsci.com/journal/",
+  "category": "General"
+ },
+ {
+  "name": "Universe Scientific Publishing",
+  "url": "https://www.usp-pl.com/journal",
+  "category": "General"
+ },
+ {
+  "name": "Nan Yang Academy of Sciences",
+  "url": "https://journals.nasspublishing.com//",
+  "category": "General"
+ },
+ {
+  "name": "Research Synergy Foundation",
+  "url": "https://journals.researchsynergypress.com/",
+  "category": "General"
+ },
+ {
+  "name": "Airiti Inc",
+  "url": "https://www.airitilibrary.com/Publication/Query?queryString=%7B%22%E6%9F%A5%E8%A9%A2%E6%AD%B7%E5%8F%B2%E9%A1%9E%E5%9E%8B%E4%BB%A3%E7%A2%BC%22%3A%22PubSearch%22%2C%22PSF%22%3A%7B%22SortFiled%22%3A1%2C%22SearchFileds%22%3A%5B%7B%22FieldName%22%3A16%2C%22SearchKeyWord%22%3A%22*%22%2C%22FieldQuery%22%3Atrue%2C%22FieldLogic%22%3A0%7D%5D%2C%22PageSize%22%3A20%2C%22SearchPubTypes%22%3A%5B%7B%22FieldQuery%22%3Atrue%2C%22FieldName%22%3A4%7D%5D%7D%7D",
+  "category": "General"
+ },
+ {
+  "name": "Volkson Press",
+  "url": "https://www.volksonpress.com/journals/",
+  "category": "General"
+ },
+ {
+  "name": "ELSP",
+  "url": "https://elspublishing.com/journals",
+  "category": "General"
+ },
+ {
+  "name": "Acadlore Publishing Services Limited",
+  "url": "https://www.acadlore.com/journals",
+  "category": "General"
+ },
+ {
+  "name": "SCIEPublish",
+  "url": "https://www.sciepublish.com/index/journals/index",
+  "category": "General"
+ },
+ {
+  "name": "IKSP",
+  "url": "https://www.iiste.org/journals/",
+  "category": "General"
+ },
+ {
+  "name": "Innovation Forever Publishing Group Limited",
+  "url": "https://www.innovationforever.com/Journals",
+  "category": "General"
+ },
+ {
+  "name": "Upubscience Publishers",
+  "url": "http://www.upubscience.com/product.aspx?typeid=2",
+  "category": "General"
+ },
+ {
+  "name": "Dean & Francis",
+  "url": "https://www.deanfrancispress.com/#Journals",
+  "category": "General"
+ },
+ {
+  "name": "Isaac Scientific Publishing",
+  "url": "http://www.isaacpub.org/",
+  "category": "General"
+ },
+ {
+  "name": "Sciscan Pub",
+  "url": "https://www.sciscanpub.com/index/journals/index.html",
+  "category": "General"
+ },
+ {
+  "name": "E- Journal",
+  "url": "https://ejournal.unsrat.ac.id/v3/index.php/index/index",
+  "category": "General"
+ },
+ {
+  "name": "Sam Ratulangi University Repository",
+  "url": "https://www.neliti.com/universitas-sam-ratulangi/browseall?q=gynecology",
+  "category": "General"
+ },
+ {
+  "name": "Madridge Journals",
+  "url": "https://madridge.org/journals",
+  "category": "General"
+ },
+ {
+  "name": "EHP Publishing",
+  "url": "https://ehp.niehs.nih.gov/",
+  "category": "General"
+ },
+ {
+  "name": "Kurdish Studies",
+  "url": "https://kurdishstudies.net/archives/",
+  "category": "General"
+ },
+ {
+  "name": "iARCON Internaltional LLP",
+  "url": "https://www.iarconsortium.org/journals",
+  "category": "General"
+ },
+ {
+  "name": "Stephy Publishers",
+  "url": "https://www.stephypublishers.com/index.php",
+  "category": "General"
+ },
+ {
+  "name": "FEBS Wiley",
+  "url": "https://febs.onlinelibrary.wiley.com/",
+  "category": "General"
+ },
+ {
+  "name": "iMedPub LTD",
+  "url": "https://www.imedpub.com/",
+  "category": "General"
+ },
+ {
+  "name": "International Research Journals.",
+  "url": "https://www.interesjournals.org/journals.html",
+  "category": "General"
+ },
+ {
+  "name": "Peertechz Publications",
+  "url": "https://www.healthdisgroup.us/articles/GJRD-7-134.php",
+  "category": "General"
+ },
+ {
+  "name": "Lawrence Press",
+  "url": "https://lawarencepress.com/",
+  "category": "General"
+ },
+ {
+  "name": "Insight Medical Publishing",
+  "url": "https://www.imedpub.com/journals.php",
+  "category": "General"
+ },
+ {
+  "name": "Raft Publications",
+  "url": "https://www.raftpubs.com/journals.php",
+  "category": "General"
+ },
+ {
+  "name": "Walsh Medical Media",
+  "url": "https://www.walshmedicalmedia.com/open-access-journals-list.html",
+  "category": "General"
+ },
+ {
+  "name": "OMICS",
+  "url": "https://www.omicsonline.org/open-access-journals-list.php",
+  "category": "General"
+ },
+ {
+  "name": "https://en.wikipedia.org/wiki/List_of_medical_schools_in_the_Middle_East",
+  "url": "",
+  "category": "General"
+ },
+ {
+  "name": "ACA Publishing",
+  "url": "https://www.acapublishing.com/journals",
+  "category": "Engineering"
+ },
+ {
+  "name": "YILDIZ TECHNICAL UNIVERSITY-OPEN ACCESS JOURNALS",
+  "url": "https://eds.yildiz.edu.tr/Home/Journals",
+  "category": "Engineering"
+ },
+ {
+  "name": "Natural and Engineering Sciences",
+  "url": "https://nesciences.com/",
+  "category": "Engineering"
+ },
+ {
+  "name": "YTU Journals",
+  "url": "https://journals.yildiz.edu.tr/",
+  "category": "Engineering"
+ },
+ {
+  "name": "IMIENS",
+  "url": "https://imiens.org/index.php/imiens",
+  "category": "Engineering"
+ },
+ {
+  "name": "Food Science and Engineering Research",
+  "url": "https://dergipark.org.tr/en/pub/foodscience",
+  "category": "Engineering"
+ },
+ {
+  "name": "RESM",
+  "url": "https://www.jresm.org/archive.html",
+  "category": "Engineering"
+ },
+ {
+  "name": "Selcuk University Journal of Engineering Sciences",
+  "url": "https://sujes.selcuk.edu.tr/sujes",
+  "category": "Engineering"
+ },
+ {
+  "name": "European Journal of Engineering and Applied Sciences",
+  "url": "https://dergipark.org.tr/en/pub/ejeas",
+  "category": "Engineering"
+ },
+ {
+  "name": "ULAKBİM Journal Systems",
+  "url": "https://dergipark.org.tr/en/search?section=journal",
+  "category": "Engineering"
+ },
+ {
+  "name": "NDPA Publishing",
+  "url": "https://ndpapublishing.com/",
+  "category": "Engineering"
+ },
+ {
+  "name": "TR Istanbul Gedik University",
+  "url": "https://www.gedik.edu.tr/arastirma/veritabanlari/akademik-yayinlar",
+  "category": "Engineering"
+ },
+ {
+  "name": "Journal of Engineering and Science",
+  "url": "https://fbedergi.klu.edu.tr/",
+  "category": "Engineering"
+ },
+ {
+  "name": "Advacned Engineering Science",
+  "url": "https://publish.mersin.edu.tr/index.php/ades/index",
+  "category": "Engineering"
+ },
+ {
+  "name": "AS Proceeding",
+  "url": "https://as-proceeding.com/index.php/icaens/journals",
+  "category": "Engineering"
+ },
+ {
+  "name": "INTERNATIONAL JOURNAL OF ARCHITECTURE AND ENGINEERING",
+  "url": "https://e-arceng.com/index.php/arceng",
+  "category": "Engineering"
+ },
+ {
+  "name": "CSA Engineering Research",
+  "url": "https://www.jmmm.material.chula.ac.th/index.php/jmmm",
+  "category": "Engineering"
+ },
+ {
+  "name": "Journal of Computer & Electrical and Electronics Engineering Sciences",
+  "url": "https://journal-jceees.com/",
+  "category": "Engineering"
+ },
+ {
+  "name": "International Journal of Applied Sciences and Computational Engineering",
+  "url": "http://www.ijasce.com/index.php/ijasce",
+  "category": "Engineering"
+ },
+ {
+  "name": "IJONFEST",
+  "url": "https://ijonfest.gedik.edu.tr/",
+  "category": "Engineering"
+ },
+ {
+  "name": "International Journal of Electrical and Computer Engineering Research",
+  "url": "https://www.ijecer.org/ijecer",
+  "category": "Engineering"
+ },
+ {
+  "name": "International Journal of Modern Achievement in Science, Engineering and Technology",
+  "url": "https://ijsetpub.com/index.php/pub",
+  "category": "Engineering"
+ },
+ {
+  "name": "Science Arena Publications",
+  "url": "https://sciarena.com/",
+  "category": "Engineering"
+ },
+ {
+  "name": "Turkish Journal of Electrical Engineering and Computer Sciences",
+  "url": "https://journals.tubitak.gov.tr/elektrik/",
+  "category": "Engineering"
+ },
+ {
+  "name": "JIENS",
+  "url": "https://jiens.org/",
+  "category": "Engineering"
+ },
+ {
+  "name": "Journal of Multidisciplinary Engineering Science Studies",
+  "url": "https://jmess.org/",
+  "category": "Engineering"
+ },
+ {
+  "name": "ENGINEERING RESEARCH AND TECHNOLOGY",
+  "url": "https://bseujert.bilecik.edu.tr/index.php/bseujert/issue/archive",
+  "category": "Engineering"
+ },
+ {
+  "name": "JMEST",
+  "url": "https://www.jmest.org/editorial-board/",
+  "category": "Engineering"
+ },
+ {
+  "name": "Scientific Cooperations",
+  "url": "https://eng-scoop.org/journals/jMechanicalAndAerospace/committee.php",
+  "category": "Engineering"
+ },
+ {
+  "name": "ICONTECH JOURNAL",
+  "url": "https://icontechjournal.com/index.php/iij/issue/archive",
+  "category": "Engineering"
+ },
+ {
+  "name": "International Journal of Advances in Biomedical Engineering",
+  "url": "https://www.ijabe.online/",
+  "category": "Engineering"
+ },
+ {
+  "name": "Golden Light Publishing",
+  "url": "https://www.goldenlightpublish.com/journals",
+  "category": "Engineering"
+ },
+ {
+  "name": "TWMS Journal of Applied and Engineering Mathematics",
+  "url": "http://jaem.isikun.edu.tr/web/",
+  "category": "Engineering"
+ },
+ {
+  "name": "Journal of Advances in Manufacturing Engineering",
+  "url": "https://jame.yildiz.edu.tr/",
+  "category": "Engineering"
+ },
+ {
+  "name": "International Journal of Pioneering Technology and Engineering",
+  "url": "https://ijpte.com/index.php/ijpte",
+  "category": "Engineering"
+ },
+ {
+  "name": "OJSDergi.com",
+  "url": "https://euroasiajournal.org/index.php/ejas/about/editorialTeam",
+  "category": "Engineering"
+ },
+ {
+  "name": "DAKAM",
+  "url": "https://www.dakam.org/ijetnas",
+  "category": "Engineering"
+ },
+ {
+  "name": "Istanbul Aydin University",
+  "url": "https://ijemme.aydin.edu.tr/tr/",
+  "category": "Engineering"
+ },
+ {
+  "name": "TMMOB Chamber of Geological Engineers",
+  "url": "https://www.jmo.org.tr/yayinlar/dergi_goster.php?kodu=391",
+  "category": "Engineering"
+ },
+ {
+  "name": "Welcome to Sigma Journal of Engineering and Natural Sciences",
+  "url": "https://eds.yildiz.edu.tr/sigma",
+  "category": "Engineering"
+ },
+ {
+  "name": "FVMD",
+  "url": "https://web.deu.edu.tr/fmd/arsiv.htm",
+  "category": "Engineering"
+ },
+ {
+  "name": "OMÜ Journal of Engineering Sciences and Technology",
+  "url": "https://ojs.omu.edu.tr/jest",
+  "category": "Engineering"
+ },
+ {
+  "name": "International Journal of Online and Biomedical Engineering",
+  "url": "https://online-journals.org/index.php/i-joe/issue/archive",
+  "category": "Engineering"
+ },
+ {
+  "name": "Engineering Modelling, Analysis & Simulation",
+  "url": "https://emas.nafems.org/index.php/v1",
+  "category": "Engineering"
+ },
+ {
+  "name": "Journal of Engineering Education Advancement",
+  "url": "https://sefi-jeea.org/index.php/sefijeea",
+  "category": "Engineering"
+ },
+ {
+  "name": "European union Digital Library",
+  "url": "https://eudl.eu/journals",
+  "category": "Engineering"
+ },
+ {
+  "name": "International Journal of Recent Contributions from Engineering, Science & IT",
+  "url": "https://online-journals.org/index.php/i-jes/issue/archive",
+  "category": "Engineering"
+ },
+ {
+  "name": "SPIE Digital Library",
+  "url": "https://spie.org/publications/spie-journals",
+  "category": "Engineering"
+ },
+ {
+  "name": "CIGR Journal",
+  "url": "https://cigrjournal.org/index.php/Ejounral/issue/archive",
+  "category": "Engineering"
+ },
+ {
+  "name": "International Journal of Engineering and Technology",
+  "url": "https://www.ijetch.org/list-6-1.html",
+  "category": "Engineering"
+ },
+ {
+  "name": "Asia Pacific Academy of Science",
+  "url": "https://aber.apacsci.com/",
+  "category": "Engineering"
+ },
+ {
+  "name": "Archives of Advanced Engineering Science",
+  "url": "https://ojs.bonviewpress.com/index.php/AAES/index",
+  "category": "Engineering"
+ },
+ {
+  "name": "Bon View Publishing Pte Ltd.",
+  "url": "https://www.bonviewpress.com/journals",
+  "category": "Engineering"
+ },
+ {
+  "name": "PiscoMed Publishing",
+  "url": "https://ojs.piscomed.com/",
+  "category": "Engineering"
+ },
+ {
+  "name": "International Journal of Chemical Engineering and Applications",
+  "url": "https://www.ijcea.org/",
+  "category": "Engineering"
+ },
+ {
+  "name": "International Journal of Electronics and Electrical Engineering",
+  "url": "https://www.ijeee.net/",
+  "category": "Engineering"
+ },
+ {
+  "name": "The ACM Digital Library",
+  "url": "https://dl.acm.org/journals",
+  "category": "Engineering"
+ },
+ {
+  "name": "Global Science Publishing",
+  "url": "https://cn.usp-pl.com/",
+  "category": "Engineering"
+ },
+ {
+  "name": "Engineered Science Publisher",
+  "url": "https://www.espublisher.com/journals",
+  "category": "Engineering"
+ },
+ {
+  "name": "MEC Press",
+  "url": "https://www.mecs-press.org/journals.html",
+  "category": "Engineering"
+ },
+ {
+  "name": "HKSMP",
+  "url": "https://www.hksmp.com/journals/eer/issue/archive",
+  "category": "Engineering"
+ },
+ {
+  "name": "ASIA PACIFIC SCIENCE PUBLICATIONS",
+  "url": "http://apspublisher.com/journal1.html",
+  "category": "Engineering"
+ },
+ {
+  "name": "Suas Press",
+  "url": "https://www.suaspress.org/ojs/index.php/JIEAS/index",
+  "category": "Engineering"
+ },
+ {
+  "name": "The World Academic Publishing",
+  "url": "http://www.academicpub.org/Browse.aspx",
+  "category": "Engineering"
+ },
+ {
+  "name": "Springer Nature",
+  "url": "https://threedmedprint.biomedcentral.com/",
+  "category": "3D Printing"
+ },
+ {
+  "name": "Mary Ann Liebert",
+  "url": "https://www.liebertpub.com/",
+  "category": "3D Printing"
+ },
+ {
+  "name": "Taylor &  Francis",
+  "url": "https://www.tandfonline.com/",
+  "category": "3D Printing"
+ },
+ {
+  "name": "International Journal of 3D Printing Technologies",
+  "url": "https://dergipark.org.tr/en/pub/ij3dptdi",
+  "category": "3D Printing"
+ },
+ {
+  "name": "Infinite Science Publishing",
+  "url": "https://www.journals.infinite-science.de/index.php/jamtech/about/editorialTeam",
+  "category": "3D Printing"
+ },
+ {
+  "name": "AccScience Publishing",
+  "url": "https://accscience.com/journal/MSAM",
+  "category": "3D Printing"
+ },
+ {
+  "name": "Metal AM",
+  "url": "https://www.metal-am.com/articles/?_gl=1*bruzft*_up*MQ..*_ga*MTAzNDU2NDk5Mi4xNzE3NTgwNjg3*_ga_HLST2JLDMT*MTcxNzU4MDY4Ni4xLjAuMTcxNzU4MDY4Ni4wLjAuNjcwODA5MTE1",
+  "category": "3D Printing"
+ },
+ {
+  "name": "Inderscience Enterprises Ltd.",
+  "url": "https://www.inderscience.com/jhome.php?jcode=ijasmm",
+  "category": "3D Printing"
+ },
+ {
+  "name": "engineering-journals-india",
+  "url": "https://www.omicsonline.org/engineering-journals-india/",
+  "category": "3D Printing"
+ },
+ {
+  "name": "List of Journals",
+  "url": "https://listofjournals.com/q3-journals.php?q=Engineering",
+  "category": "3D Printing"
+ },
+ {
+  "name": "Asian Online Journal Publishing Group",
+  "url": "https://asianonlinejournals.com/",
+  "category": "3D Printing"
+ },
+ {
+  "name": "Emerald Publishing Limited",
+  "url": "https://www.emerald.com/insight/publication/issn/1355-2546?_ga=2.164730047.1033095554.1717581156-1901391153.1717581156&_gl=1*tadm1x*_ga*MTkwMTM5MTE1My4xNzE3NTgxMTU2",
+  "category": "3D Printing"
+ },
+ {
+  "name": "inder Science",
+  "url": "https://www.inderscience.com/mobile/journal/insubcat.php?catid=1",
+  "category": "3D Printing"
+ },
+ {
+  "name": "The Chinese Mechanical Engineering Society",
+  "url": "https://www.cmes.org/english/publications/page.html",
+  "category": "3D Printing"
+ },
+ {
+  "name": "Phcog.Net",
+  "url": "https://jscires.org/past-issues/",
+  "category": "3D Printing"
+ },
+ {
+  "name": "IAEME Publication",
+  "url": "https://iaeme.com/Home/issue/IJ3DAM?Volume=2&Issue=1",
+  "category": "3D Printing"
+ },
+ {
+  "name": "World Science",
+  "url": "https://www.worldscientific.com/action/doSearch?AllField=3d+printing&startPage=&PubType=journal",
+  "category": "3D Printing"
+ },
+ {
+  "name": "T&F",
+  "url": "https://www.tandfonline.com/loi/idpm20/group/d2020.y2022",
+  "category": "3D Printing"
+ },
+ {
+  "name": "Frontiers Media S.A",
+  "url": "https://www.frontiersin.org/journals/manufacturing-technology/articles",
+  "category": "3D Printing"
+ },
+ {
+  "name": "ASME Journals",
+  "url": "https://asmedigitalcollection.asme.org/computingengineering/article/17/4/041012/474348/An-Open-Source-Framework-for-Integrated-Additive",
+  "category": "3D Printing"
+ },
+ {
+  "name": "Keai Publishing",
+  "url": "https://all3dp.com/2/best-additive-manufacturing-journal/",
+  "category": "3D Printing"
+ },
+ {
+  "name": "Ores",
+  "url": "https://ores.su/en/journals/3d-printing-and-additive-manufacturing/",
+  "category": "3D Printing"
+ }
+]
