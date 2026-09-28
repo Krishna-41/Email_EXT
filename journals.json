@@ -1,5 +1,15 @@
 [
  {
+  "name": "Europe PMC",
+  "url": "https://europepmc.org/",
+  "category": "Data Sources"
+ },
+ {
+  "name": "PubMed",
+  "url": "https://pubmed.ncbi.nlm.nih.gov/",
+  "category": "Data Sources"
+ },
+ {
   "name": "Elsevier",
   "url": "https://www.elsevier.com/",
   "category": "General"

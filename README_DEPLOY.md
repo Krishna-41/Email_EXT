@@ -153,6 +153,74 @@ crashes or reboots).
 | `EPMC_MAX_JOBS` | 2 | Max searches running at the same time |
 | `EPMC_RUN_SCHEDULER` | 1 | Set to `0` to disable the auto-refresh thread entirely |
 
+## What's new in this version
+- **Real calendar date pickers** instead of year-only boxes, for both "from"
+  and "to". Europe PMC's own date field (`FIRST_PDATE`) supports full dates,
+  so this is a straight upgrade - a bare year still works if you type one.
+- **Total match count is now shown.** "Check matches" gives you the total
+  Europe PMC has for each search word before you commit to a run. Once a run
+  finishes (or is paused), the same table fills in with new articles / new
+  emails / already-collected-skipped for that run, so you always know how
+  many exist vs. how many you've actually pulled in.
+- **One Start/Pause/Resume button.** Click Start; while it's running the same
+  button says Pause; click it again to pause. It then says Resume - clicking
+  that continues the exact same search from exactly where it left off
+  (nothing is reprocessed, nothing is skipped). Under the hood this reuses
+  the same "remember where each search got to" mechanism as before; the fix
+  in this version was making sure a *paused mid-page* search resumes without
+  either re-doing or silently dropping any articles (see below).
+- **Fixed corrupted emails.** The cause: when reading an article's full-text
+  XML, adjacent tags with no whitespace between them (very common - e.g. a
+  footnote-number tag sitting right next to an email tag) were being
+  concatenated with no separator at all before the code split on whitespace.
+  That let a stray leading number get glued onto the front of an email, and -
+  more visibly - let the matching pattern's un-bounded domain-suffix eat
+  whatever word came right after the email with no space (so "...uni.edu"
+  followed immediately by "Keywords:" in the source text became one email
+  "...uni.eduKeywords"). Fixed by inserting a space between every separate
+  bit of text before collapsing whitespace, plus a conservative cleanup step
+  that trims a trailing glued word only when what's left is a real,
+  recognized domain ending (so genuinely long domains like `.museum` or
+  `.technology` are never touched). Verified against the exact bug pattern
+  and several adversarial variants - see the notes below for the one
+  remaining case this can't fully fix.
+- **Much faster.** Fetching each article's full text used to happen one at a
+  time - almost all of the 90-100 minutes for 5,000 articles was spent
+  waiting on network round trips, not doing any real work. Articles are now
+  fetched several at once (10 in parallel by default, tune with
+  `EPMC_FULLTEXT_WORKERS`). In testing this cut the time for a batch of
+  simulated articles by roughly 8x; your real speedup will depend on how
+  Europe PMC responds to concurrent requests, but it should be a large,
+  reliable improvement rather than a marginal one.
+- **"Europe PMC" and "PubMed" added to the journal dropdown.** These aren't
+  journal names, so selecting them doesn't filter by `JOURNAL:`/`PUBLISHER:`
+  like the rest of the list - they instead restrict your search to that
+  *data source* (PubMed-indexed records, or Europe PMC's own records
+  including preprints). They're listed under a new "Data Sources" heading so
+  it's clear they're a different kind of filter from an actual journal.
+
+## Latest changes
+- **Separate Stop button.** Pause (the Start/Pause/Resume button) halts a run
+  but remembers exactly where it was, so Resume continues from there. Stop
+  does something different: it halts the run **and forgets where it was**,
+  so the next time you start that same search it begins from the beginning
+  again. Neither one deletes anything you've already collected - only Stop
+  clears the "resume point," not the data.
+- **"Clear my history" button.** Wipes everything this browser has collected
+  (articles processed, emails found, resume progress) with a confirmation
+  prompt first. Your watched searches are left in place, since those are
+  active settings rather than history.
+- **No more "nano" pre-filled in the search box** - it starts empty with
+  example text as a placeholder instead.
+- **Removed the "multi-word matching" choice.** Typing more than one word now
+  always searches for that exact phrase (e.g. "bio chemistry" only matches
+  articles containing that phrase), instead of offering a broader "any word"
+  or "all words anywhere" option that could pull in unrelated results. Advanced
+  Europe PMC syntax (AND/OR/quotes/field names) still works exactly as typed.
+- **Visual cleanup** - the page is now organized into distinct sections with
+  clear boundaries, tidier spacing and typography, so it's easier to scan at
+  a glance.
+
 ## Notes and honest limitations
 - The journal dropdown filters by Europe PMC's `JOURNAL:` and `PUBLISHER:`
   fields. Real journal titles (e.g. "Natural and Engineering Sciences") match
@@ -177,6 +245,22 @@ crashes or reboots).
   has **not** been tested against the real, live Europe PMC service - test
   with a small search (a handful of articles) before relying on it for a
   big run.
-- If you ran the earlier version of this app and already have a
-  `collector.db` file from testing, delete it before your real deployment -
-  its table structure doesn't have the per-user columns this version needs.
+- If you ran an earlier version of this app and already have a `collector.db`
+  file from testing, **delete it** before your real deployment - this
+  version's `watches` table has different columns (real dates instead of
+  years) and old rows won't match.
+- The email cleanup fixes the case that was actually reported (a tag right
+  next to an email, with no whitespace text node between them, which is the
+  common case in real journal XML). It can't fully fix an email and the next
+  word being glued together with literally zero separator *within a single
+  continuous run of plain text* (no XML tag boundary at all) - that's a
+  formatting quirk of the original source document, not something raw HTML
+  structure can help with, and a heuristic cleanup step handles the common
+  cases of that too (trimming a trailing glued English word when what's left
+  is a real domain ending) without risking corrupting valid unusual domains.
+  If you still spot a bad email after this, send it my way - the exact
+  glued text will show what other pattern needs handling.
+- Raising `EPMC_FULLTEXT_WORKERS` fetches more articles at once (faster), but
+  push it too high and Europe PMC may start throttling or rejecting requests
+  - 10 is a reasonable default; if you see a lot of failed fetches in a big
+  run, try lowering it instead.

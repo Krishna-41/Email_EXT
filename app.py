@@ -40,6 +40,7 @@ import re
 import sqlite3
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -57,7 +58,54 @@ UPSTREAM = os.environ.get("EPMC_UPSTREAM", "https://www.ebi.ac.uk/europepmc/webs
 UA = "europepmc-author-email-collector/4.0"
 REFRESH_INTERVAL_SECONDS = int(os.environ.get("EPMC_REFRESH_SECONDS", 6 * 3600))  # 6 hours
 MAX_CONCURRENT_JOBS = int(os.environ.get("EPMC_MAX_JOBS", 2))
-EMAIL_RE = re.compile(r"[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}")
+# Fetching each article's full-text XML is the slow part (one network round
+# trip per article). Doing them concurrently instead of one-at-a-time is
+# what makes large runs fast - tune down if Europe PMC ever rate-limits you.
+FULLTEXT_WORKERS = int(os.environ.get("EPMC_FULLTEXT_WORKERS", 10))
+# Articles are fetched in chunks this big, not all-at-once, so that clicking
+# Pause takes effect within one chunk instead of waiting for an entire
+# 100-article page to finish.
+CHUNK_SIZE = FULLTEXT_WORKERS * 2
+EMAIL_RE = re.compile(r"[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,24}")
+# Top-level domains/second-level combos common in academic emails. Used only to
+# clean up an email that got a stray word glued onto the end (see
+# strip_glued_suffix) - not used to reject emails with newer/uncommon TLDs.
+COMMON_TLDS = {
+    "com", "org", "net", "edu", "gov", "mil", "int", "info", "biz", "io", "ai",
+    "co", "in", "uk", "us", "cn", "jp", "de", "fr", "it", "es", "br", "au", "ca",
+    "kr", "ru", "nl", "se", "ch", "at", "be", "dk", "no", "fi", "pl", "gr", "pt",
+    "tr", "sg", "hk", "tw", "nz", "mx", "il", "eg", "pk", "my", "th", "id", "ng",
+    "ke", "za", "ir", "sa", "ae",
+}
+# Words that sometimes end up glued directly onto an email with no space,
+# when the source text has no whitespace between two words at all (rare, but
+# happens in some publishers' XML/PDF-derived text).
+_GLUE_WORDS = sorted(
+    ["for", "and", "the", "author", "authors", "corresponding", "email",
+     "contact", "address", "tel", "fax", "phone", "received", "accepted",
+     "published", "keywords", "abstract", "introduction", "department",
+     "university", "school", "institute", "college"],
+    key=len, reverse=True,
+)
+
+
+def strip_glued_suffix(email):
+    """If a common English word is glued onto a real TLD with no separator
+    (e.g. 'uni.educontact' from 'uni.edu' + 'Contact:'), trim it off. Only
+    triggers when what's left after trimming is itself a known TLD, so real
+    (if unusual) domains like '.museum' or '.technology' are left alone."""
+    if "@" not in email:
+        return email
+    local, domain = email.split("@", 1)
+    labels = domain.split(".")
+    if labels:
+        last = labels[-1]
+        low = last.lower()
+        for w in _GLUE_WORDS:
+            if low.endswith(w) and len(low) > len(w) and low[: -len(w)] in COMMON_TLDS:
+                labels[-1] = last[: -len(w)]
+                break
+    return local + "@" + ".".join(labels)
 COOKIE_NAME = "epmc_uid"
 COOKIE_MAX_AGE = 60 * 60 * 24 * 365 * 2  # ~2 years
 
@@ -114,11 +162,10 @@ def init_db():
                 user_id TEXT,
                 terms TEXT,        -- JSON list of search words
                 journals TEXT,     -- JSON list of selected journal names
-                mode TEXT,         -- all / phrase / any
                 oa INTEGER,
                 syn INTEGER,
-                from_year INTEGER,
-                to_year INTEGER,
+                from_date TEXT,     -- 'YYYY-MM-DD'
+                to_date TEXT,       -- 'YYYY-MM-DD'
                 created_at TEXT,
                 last_run_at TEXT,
                 last_new_count INTEGER DEFAULT 0
@@ -193,7 +240,8 @@ def http_get_text(url, tries=3):
 
 # ----------------------------------------------------------- email extraction
 def clean_email(e):
-    return e.strip().strip(".,;:()[]<>").lower()
+    e = e.strip().strip(".,;:()[]<>").lower()
+    return strip_glued_suffix(e)
 
 
 def find_emails(text):
@@ -201,7 +249,14 @@ def find_emails(text):
 
 
 def flat_text(el):
-    return " ".join("".join(el.itertext()).split())
+    # IMPORTANT: join with a space BEFORE collapsing whitespace, not after.
+    # el.itertext() yields one string per text node; JATS/XML very often has
+    # no whitespace text node between adjacent tags (e.g. a footnote number
+    # in <sup> right next to an <email> tag), so joining with "" first would
+    # fuse them into one token (e.g. "1jane.doe@uni.edu"). Joining each piece
+    # with a space first keeps them separate, and the final .split()/" ".join
+    # still collapses any real double-spaces back down to one.
+    return " ".join(" ".join(el.itertext()).split())
 
 
 def unique(seq):
@@ -270,24 +325,44 @@ def authors_from_affiliations(record):
 
 
 # --------------------------------------------------------------- query build
-def build_query(term, journals, mode, oa, from_year, to_year):
+# A couple of dropdown entries are data sources, not real journal/publisher
+# names - Europe PMC has no JOURNAL/PUBLISHER value for these, so they're
+# mapped to the field that actually restricts by source instead.
+SOURCE_FILTERS = {
+    "PubMed": 'SRC:MED',
+    "Europe PMC": '(SRC:PMC OR SRC:PPR)',
+}
+
+
+def _norm_date(d, fallback):
+    """Accepts 'YYYY-MM-DD' (from the date picker) or a bare year; returns
+    'YYYY-MM-DD' for the query. Falls back to `fallback` if empty/unparsable."""
+    d = (d or "").strip()
+    if re.fullmatch(r"\d{4}-\d{2}-\d{2}", d):
+        return d
+    if re.fullmatch(r"\d{4}", d):
+        return d + fallback[4:]  # bare year -> reuse fallback's month/day (01-01 or 12-31)
+    return fallback
+
+
+def build_query(term, journals, oa, from_date, to_date):
+    from_date = _norm_date(from_date, "2024-01-01")
+    to_date = _norm_date(to_date, "2026-12-31")
     if re.search(r"\b(AND|OR|NOT)\b|[\"():\[\]]", term):
-        core = f"({term})"
+        core = f"({term})"  # already advanced Europe PMC syntax - use as typed
+    elif len(term.split()) == 1:
+        core = term
     else:
-        words = term.split()
-        if len(words) == 1:
-            core = words[0]
-        elif mode == "phrase":
-            core = f'"{term}"'
-        else:
-            joiner = " OR " if mode == "any" else " AND "
-            core = "(" + joiner.join(words) + ")"
-    q = f"{core} AND (FIRST_PDATE:[{from_year} TO {to_year}])"
+        core = f'"{term}"'  # multiple words -> exact phrase, not "any word matches"
+    q = f"{core} AND (FIRST_PDATE:[{from_date} TO {to_date}])"
     if journals:
         clauses = []
         for j in journals:
-            j_clean = j.replace('"', "")
-            clauses.append(f'JOURNAL:"{j_clean}" OR PUBLISHER:"{j_clean}"')
+            if j in SOURCE_FILTERS:
+                clauses.append(SOURCE_FILTERS[j])
+            else:
+                j_clean = j.replace('"', "")
+                clauses.append(f'JOURNAL:"{j_clean}" OR PUBLISHER:"{j_clean}"')
         q += " AND (" + " OR ".join(clauses) + ")"
     if oa:
         q += " AND OPEN_ACCESS:y"
@@ -379,7 +454,23 @@ def new_job_id():
         return f"job{_job_counter[0]}-{int(time.time())}"
 
 
-def run_search(job_id, user_id, terms, journals, mode, oa, syn, from_year, to_year, max_per_term, stop_flag):
+def fetch_rows_for_record(rec):
+    """Everything needed from ONE article: full-text (if open access) plus the
+    affiliation-text fallback. Runs in a worker thread - no shared state
+    besides plain HTTP calls, so many can run at once safely."""
+    rows = []
+    if rec.get("pmcid") and rec.get("isOpenAccess") == "Y":
+        xml_text = http_get_text(f"{UPSTREAM}/{rec['pmcid']}/fullTextXML")
+        if xml_text:
+            try:
+                rows += authors_from_fulltext(xml_text)
+            except Exception:
+                pass
+    rows += authors_from_affiliations(rec)
+    return rows
+
+
+def run_search(job_id, user_id, terms, journals, oa, syn, from_date, to_date, max_per_term, stop_flag):
     """Core scan loop, shared by manual jobs, watch creation, and the auto-refresh scheduler."""
     total_new_articles = 0
     total_new_emails = 0
@@ -388,12 +479,13 @@ def run_search(job_id, user_id, terms, journals, mode, oa, syn, from_year, to_ye
     for term in terms:
         if stop_flag and stop_flag.is_set():
             break
-        query = build_query(term, journals, mode, oa, from_year, to_year)
+        query = build_query(term, journals, oa, from_date, to_date)
         qkey = query + ("|syn" if syn else "")
 
         with JOBS_LOCK:
             if job_id in JOBS:
                 JOBS[job_id]["status"] = f'"{term}": counting matches...'
+                JOBS[job_id].setdefault("qkeys", set()).add(qkey)  # so Stop can clear resume-progress
 
         try:
             all_hits = hit_count(query, syn)
@@ -432,41 +524,72 @@ def run_search(job_id, user_id, terms, journals, mode, oa, syn, from_year, to_ye
                 conn.commit()
                 break
 
+            # Figure out which articles in this page are actually new, then
+            # fetch their full text in parallel (chunked, so Pause responds
+            # within one chunk instead of waiting out a whole 100-article page).
+            #
+            # `page_interrupted` tracks whether we stopped partway through this
+            # page (paused, or hit the max-articles cap mid-page). If so, we
+            # must NOT advance the saved cursor to the next page - the cursor
+            # already on record still points at THIS page, so resuming
+            # re-fetches it and (thanks to is_done) only re-does the leftover
+            # articles. Advancing the cursor anyway would silently and
+            # permanently skip whatever was left unprocessed in this page.
+            page_interrupted = False
+            fresh = []
             for rec in results:
                 if stop_flag and stop_flag.is_set():
+                    page_interrupted = True
                     break
-                if max_per_term and new_art >= max_per_term:
+                if max_per_term and (new_art + len(fresh)) >= max_per_term:
+                    page_interrupted = True
                     break
                 if is_done(conn, user_id, rec):
                     skipped += 1
                     continue
-                rows = []
-                if rec.get("pmcid") and rec.get("isOpenAccess") == "Y":
-                    xml_text = http_get_text(f"{UPSTREAM}/{rec['pmcid']}/fullTextXML")
-                    if xml_text:
+                fresh.append(rec)
+
+            i = 0
+            while i < len(fresh) and not (stop_flag and stop_flag.is_set()):
+                chunk = fresh[i:i + CHUNK_SIZE]
+                if max_per_term:
+                    budget = max(0, max_per_term - new_art)
+                    if len(chunk) > budget:
+                        chunk = chunk[:budget]
+                        page_interrupted = True
+                if not chunk:
+                    break
+                with ThreadPoolExecutor(max_workers=FULLTEXT_WORKERS) as ex:
+                    future_map = {ex.submit(fetch_rows_for_record, rec): rec for rec in chunk}
+                    for fut in as_completed(future_map):
+                        rec = future_map[fut]
                         try:
-                            rows += authors_from_fulltext(xml_text)
+                            rows = fut.result()
                         except Exception:
-                            pass
-                rows += authors_from_affiliations(rec)
-                for name, email in rows:
-                    if save_email(conn, user_id, name, email, rec, term, job_id):
-                        new_em += 1
-                mark_done(conn, user_id, rec)
-                new_art += 1
-                conn.commit()
-                with JOBS_LOCK:
-                    if job_id in JOBS:
-                        JOBS[job_id]["status"] = (
-                            f'"{term}": {new_art} new articles processed | '
-                            f"{new_em} new emails | {skipped} already-collected skipped"
-                        )
+                            rows = []
+                        for name, email in rows:
+                            if save_email(conn, user_id, name, email, rec, term, job_id):
+                                new_em += 1
+                        mark_done(conn, user_id, rec)
+                        new_art += 1
+                        conn.commit()
+                        with JOBS_LOCK:
+                            if job_id in JOBS:
+                                JOBS[job_id]["status"] = (
+                                    f'"{term}": {new_art} new articles processed | '
+                                    f"{new_em} new emails | {skipped} already-collected skipped"
+                                )
+                i += CHUNK_SIZE
+            if i < len(fresh) or (stop_flag and stop_flag.is_set()):
+                page_interrupted = True
+
+            if page_interrupted:
+                break  # cursor/scanned left exactly as they were - safe to resume
 
             nxt = data.get("nextCursorMark")
             scanned += len(results)
-            if not nxt or nxt == cursor or (max_per_term and new_art >= max_per_term):
-                finished = not nxt or nxt == cursor
-                save_progress(conn, user_id, qkey, cursor if not nxt else nxt, scanned, finished)
+            if not nxt or nxt == cursor:
+                save_progress(conn, user_id, qkey, nxt if nxt else cursor, scanned, True)
                 conn.commit()
                 break
             cursor = nxt
@@ -501,7 +624,7 @@ def job_worker(job_id, params):
             JOBS[job_id]["status"] = f"Error: {e}"
 
 
-def start_job(user_id, terms, journals, mode, oa, syn, from_year, to_year, max_per_term, watch_id=None):
+def start_job(user_id, terms, journals, oa, syn, from_date, to_date, max_per_term, watch_id=None):
     """Common helper: register a job and run it in a background thread. Returns job_id."""
     job_id = new_job_id()
     stop_flag = threading.Event()
@@ -511,8 +634,8 @@ def start_job(user_id, terms, journals, mode, oa, syn, from_year, to_year, max_p
             "user_id": user_id, "watch_id": watch_id,
         }
     params = dict(
-        user_id=user_id, terms=terms, journals=journals, mode=mode, oa=oa, syn=syn,
-        from_year=from_year, to_year=to_year, max_per_term=max_per_term,
+        user_id=user_id, terms=terms, journals=journals, oa=oa, syn=syn,
+        from_date=from_date, to_date=to_date, max_per_term=max_per_term,
     )
     t = threading.Thread(target=job_worker, args=(job_id, params), daemon=True)
     t.start()
@@ -534,8 +657,8 @@ def run_watch_now(w, existing_job_id=None):
             "stop_flag": stop_flag, "watch_id": w["id"], "user_id": w["user_id"],
         })
     result = run_search(
-        job_id=job_id, user_id=w["user_id"], terms=terms, journals=journals, mode=w["mode"],
-        oa=bool(w["oa"]), syn=bool(w["syn"]), from_year=w["from_year"], to_year=w["to_year"],
+        job_id=job_id, user_id=w["user_id"], terms=terms, journals=journals,
+        oa=bool(w["oa"]), syn=bool(w["syn"]), from_date=w["from_date"], to_date=w["to_date"],
         max_per_term=0, stop_flag=stop_flag,
     )
     conn = get_conn()
@@ -585,14 +708,13 @@ def api_journals():
 def api_hitcount():
     term = request.args.get("term", "")
     journals = request.args.getlist("journal")
-    mode = request.args.get("mode", "all")
     oa = request.args.get("oa") == "1"
     syn = request.args.get("syn") == "1"
-    from_year = request.args.get("from", "2024")
-    to_year = request.args.get("to", "2026")
+    from_date = request.args.get("from", "2024-01-01")
+    to_date = request.args.get("to", "2026-12-31")
     if not term:
         return jsonify({"error": "missing term"}), 400
-    q = build_query(term, journals, mode, oa, from_year, to_year)
+    q = build_query(term, journals, oa, from_date, to_date)
     try:
         n = hit_count(q, syn)
     except Exception as e:
@@ -610,11 +732,10 @@ def api_run():
         user_id=g.user_id,
         terms=terms,
         journals=body.get("journals", []),
-        mode=body.get("mode", "all"),
         oa=bool(body.get("oa", True)),
         syn=bool(body.get("syn", True)),
-        from_year=int(body.get("from", 2024)),
-        to_year=int(body.get("to", 2026)),
+        from_date=body.get("from", "2024-01-01"),
+        to_date=body.get("to", "2026-12-31"),
         max_per_term=int(body.get("max", 200)),
     )
     return jsonify({"job_id": job_id})
@@ -631,11 +752,62 @@ def api_job(job_id):
 
 @app.route("/api/job/<job_id>/stop", methods=["POST"])
 def api_job_stop(job_id):
+    """Pause: interrupt the run, but keep its saved progress so a later
+    Resume (just running the same search again) continues from here."""
     with JOBS_LOCK:
         j = JOBS.get(job_id)
         if not j:
             return jsonify({"error": "unknown job"}), 404
         j["stop_flag"].set()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/job/<job_id>/abort", methods=["POST"])
+def api_job_abort(job_id):
+    """Stop: interrupt the run AND forget where it was up to, so the next
+    time this search is run it starts over from the beginning. Already
+    collected emails/articles are NOT deleted - only the "resume point"."""
+    with JOBS_LOCK:
+        j = JOBS.get(job_id)
+        if not j:
+            return jsonify({"error": "unknown job"}), 404
+        j["stop_flag"].set()
+        user_id = j.get("user_id")
+        qkeys = list(j.get("qkeys", []))
+
+    def _finish_abort():
+        for _ in range(100):  # wait up to ~10s for the run loop to actually exit
+            with JOBS_LOCK:
+                state = JOBS.get(job_id, {}).get("state")
+            if state in ("stopped", "done", "error"):
+                break
+            time.sleep(0.1)
+        if user_id and qkeys:
+            conn = get_conn()
+            for qk in qkeys:
+                conn.execute("DELETE FROM query_progress WHERE user_id=? AND qkey=?", (user_id, qk))
+            conn.commit()
+            conn.close()
+        with JOBS_LOCK:
+            if job_id in JOBS:
+                JOBS[job_id]["state"] = "aborted"
+                JOBS[job_id]["status"] = "Stopped. Starting this search again will begin from the beginning."
+
+    threading.Thread(target=_finish_abort, daemon=True).start()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/clear", methods=["POST"])
+def api_clear():
+    """Clear my history: wipes this browser's collected articles/emails and
+    resume-progress. Does not touch other visitors' data, and does not
+    delete watched searches (those are active settings, not history)."""
+    conn = get_conn()
+    conn.execute("DELETE FROM articles WHERE user_id=?", (g.user_id,))
+    conn.execute("DELETE FROM emails WHERE user_id=?", (g.user_id,))
+    conn.execute("DELETE FROM query_progress WHERE user_id=?", (g.user_id,))
+    conn.commit()
+    conn.close()
     return jsonify({"ok": True})
 
 
@@ -710,17 +882,16 @@ def api_watches():
             conn.close()
             return jsonify({"error": "no search words given"}), 400
         conn.execute(
-            "INSERT INTO watches (user_id, terms, journals, mode, oa, syn, from_year, to_year, created_at) "
-            "VALUES (?,?,?,?,?,?,?,?,?)",
+            "INSERT INTO watches (user_id, terms, journals, oa, syn, from_date, to_date, created_at) "
+            "VALUES (?,?,?,?,?,?,?,?)",
             (
                 user_id,
                 json.dumps(terms),
                 json.dumps(body.get("journals", [])),
-                body.get("mode", "all"),
                 int(bool(body.get("oa", True))),
                 int(bool(body.get("syn", True))),
-                int(body.get("from", 2024)),
-                int(body.get("to", 2026)),
+                body.get("from", "2024-01-01"),
+                body.get("to", "2026-12-31"),
                 now_iso(),
             ),
         )
@@ -769,30 +940,56 @@ PAGE = r"""<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Europe PMC Author Email Collector</title>
 <style>
-  :root { color-scheme: light dark; --bd:#8884; --ac:#2a6fdb; }
-  body { font-family: system-ui, Segoe UI, Arial, sans-serif; max-width: 1050px; margin: 24px auto; padding: 0 16px; }
-  h1 { font-size: 1.4rem; margin: 0 0 4px; }
-  p.sub { margin: 0 0 8px; opacity: .7; font-size: .9rem; }
-  #stats { font-size: .85rem; padding: 8px 10px; border: 1px solid var(--bd); border-radius: 6px; margin-bottom: 8px; }
-  label { display: block; font-weight: 600; font-size: .85rem; margin: 12px 0 4px; }
-  textarea, input[type=number], input[type=text], select { width: 100%; box-sizing: border-box; padding: 8px; border: 1px solid var(--bd); border-radius: 6px; font: inherit; background: transparent; color: inherit; }
-  textarea { height: 90px; }
-  .row { display: flex; gap: 12px; flex-wrap: wrap; }
-  .row > div { flex: 1 1 140px; }
-  .chk { font-weight: 400; display: flex; gap: 8px; align-items: center; margin-top: 10px; }
-  .hint { font-weight: 400; opacity: .65; font-size: .78rem; }
-  button { padding: 9px 16px; border: 0; border-radius: 6px; font: inherit; font-weight: 600; cursor: pointer; background: var(--ac); color: #fff; margin: 16px 8px 0 0; }
+  :root {
+    color-scheme: light dark;
+    --bd: #8884;
+    --ac: #2a6fdb;
+    --ac-hover: #1d5bc0;
+    --danger: #d64545;
+    --tint: rgba(127,127,127,.05);
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    max-width: 980px; margin: 32px auto 64px; padding: 0 20px; line-height: 1.45;
+  }
+  h1 { font-size: 1.5rem; margin: 0 0 4px; letter-spacing: -.01em; }
+  p.sub { margin: 0 0 20px; opacity: .6; font-size: .92rem; }
+  h2 { font-size: .82rem; margin: 0 0 14px; opacity: .8; text-transform: uppercase; letter-spacing: .06em; font-weight: 700; }
+  .card { border: 1px solid var(--bd); border-radius: 10px; padding: 18px 20px; margin-bottom: 18px; background: var(--tint); }
+  #stats { font-size: .85rem; padding: 10px 14px; border: 1px solid var(--bd); border-radius: 8px; margin-bottom: 18px; opacity: .85; }
+  label { display: block; font-weight: 600; font-size: .82rem; margin: 14px 0 5px; }
+  label:first-of-type { margin-top: 0; }
+  textarea, input[type=number], input[type=text], input[type=date] {
+    width: 100%; padding: 9px 10px; border: 1px solid var(--bd); border-radius: 7px;
+    font: inherit; font-size: .92rem; background: transparent; color: inherit;
+  }
+  textarea { height: 78px; resize: vertical; }
+  .row { display: flex; gap: 14px; flex-wrap: wrap; }
+  .row > div { flex: 1 1 150px; }
+  .chk { font-weight: 400; display: flex; gap: 8px; align-items: center; margin-top: 12px; font-size: .88rem; }
+  .hint { font-weight: 400; opacity: .55; font-size: .78rem; }
+  .btn-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+  button {
+    padding: 9px 16px; border: 0; border-radius: 7px; font: inherit; font-size: .88rem;
+    font-weight: 600; cursor: pointer; background: var(--ac); color: #fff;
+  }
+  button:hover:not(:disabled) { background: var(--ac-hover); }
   button.sec { background: transparent; color: inherit; border: 1px solid var(--bd); }
+  button.sec:hover:not(:disabled) { background: var(--tint); }
+  button.danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
+  button.danger:hover:not(:disabled) { background: rgba(214,69,69,.08); }
   button:disabled { opacity: .4; cursor: default; }
-  #status { margin: 14px 0 6px; font-size: .9rem; min-height: 1.3em; }
-  .tw { overflow-x: auto; border: 1px solid var(--bd); border-radius: 6px; max-height: 340px; overflow-y: auto; margin-bottom: 12px; }
+  #status { margin: 14px 0 0; font-size: .88rem; min-height: 1.3em; opacity: .85; }
+  .tw { overflow-x: auto; border: 1px solid var(--bd); border-radius: 8px; max-height: 320px; overflow-y: auto; }
   table { border-collapse: collapse; width: 100%; font-size: .82rem; }
-  th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--bd); white-space: nowrap; max-width: 320px; overflow: hidden; text-overflow: ellipsis; }
-  th { position: sticky; top: 0; background: Canvas; }
-  h2 { font-size: 1rem; margin: 18px 0 6px; }
-  #journalBox { border: 1px solid var(--bd); border-radius: 6px; max-height: 220px; overflow-y: auto; padding: 6px 8px; }
-  #journalBox label { font-weight: 400; margin: 2px 0; display: flex; gap: 6px; align-items: center; }
-  .catHead { font-weight: 700; margin-top: 8px; opacity: .8; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--bd); white-space: nowrap; max-width: 320px; overflow: hidden; text-overflow: ellipsis; }
+  th { position: sticky; top: 0; background: Canvas; font-weight: 600; opacity: .8; }
+  tr:last-child td { border-bottom: none; }
+  #journalBox { border: 1px solid var(--bd); border-radius: 7px; max-height: 200px; overflow-y: auto; padding: 8px 10px; }
+  #journalBox label { font-weight: 400; margin: 3px 0; display: flex; gap: 7px; align-items: center; font-size: .86rem; }
+  .catHead { font-weight: 700; margin-top: 10px; opacity: .7; font-size: .74rem; text-transform: uppercase; letter-spacing: .04em; }
+  .catHead:first-child { margin-top: 0; }
 </style>
 </head>
 <body>
@@ -800,48 +997,62 @@ PAGE = r"""<!DOCTYPE html>
 <p class="sub">Your own collected data on this browser - not shared with other visitors.</p>
 <div id="stats">Loading your stats...</div>
 
-<label for="terms">Search words (one per line) <span class="hint">- e.g. nano materials, bio chemistry, artificial intelligence</span></label>
-<textarea id="terms">nano</textarea>
+<div class="card">
+<h2>Search</h2>
+<label for="terms">Search words (one per line)</label>
+<textarea id="terms" placeholder="e.g. nano materials&#10;bio chemistry&#10;artificial intelligence"></textarea>
 
 <label for="journalFilter">Journals / publishers (optional - pick from your list, or leave empty for all)</label>
 <input type="text" id="journalFilter" placeholder="Type to filter the list below...">
 <div id="journalBox"></div>
 
 <div class="row">
-  <div><label for="mode">Multi-word matching</label>
-    <select id="mode">
-      <option value="all">All words anywhere (bio AND chemistry)</option>
-      <option value="phrase">Exact phrase ("bio chemistry")</option>
-      <option value="any">Any word (bio OR chemistry)</option>
-    </select></div>
-  <div><label for="from">From year</label><input type="number" id="from" value="2024"></div>
-  <div><label for="to">To year</label><input type="number" id="to" value="2026"></div>
+  <div><label for="from">From date</label><input type="date" id="from" value="2024-01-01"></div>
+  <div><label for="to">To date</label><input type="date" id="to" value="2026-12-31"></div>
   <div><label for="max">Max NEW articles per search word (0 = all remaining)</label><input type="number" id="max" value="200" min="0"></div>
 </div>
 
 <label class="chk"><input type="checkbox" id="oa" checked> Open-access articles only (full text available, far more emails)</label>
 <label class="chk"><input type="checkbox" id="syn" checked> Include synonyms</label>
 
-<button id="go">Start</button>
-<button id="stop" class="sec" disabled>Stop</button>
-<button id="watchBtn" class="sec">Auto-refresh this search (collects everything now, then keeps checking for new articles)</button>
-<br>
-<button id="dlRun" class="sec" disabled>Download this run (CSV)</button>
-<button id="dlAll" class="sec">Download all my collected data (CSV)</button>
+<div class="btn-row">
+  <button id="checkBtn" class="sec">Check matches</button>
+  <button id="go">Start</button>
+  <button id="stopBtn" class="sec" disabled>Stop</button>
+  <button id="watchBtn" class="sec">Auto-refresh this search</button>
+</div>
+<div class="btn-row">
+  <button id="dlRun" class="sec" disabled>Download this run (CSV)</button>
+  <button id="dlAll" class="sec">Download all my collected data (CSV)</button>
+  <button id="clearBtn" class="danger">Clear my history</button>
+</div>
 
 <div id="status"></div>
+</div>
 
+<div class="card">
+<h2>Search word results</h2>
+<div class="tw"><table>
+  <thead><tr><th>Search word</th><th>Total matches on Europe PMC</th><th>New articles this run</th><th>New emails this run</th><th>Already collected (skipped)</th></tr></thead>
+  <tbody id="termsBody"></tbody>
+</table></div>
+</div>
+
+<div class="card">
 <h2>My watched searches (auto-updated in the background)</h2>
 <div class="tw"><table>
   <thead><tr><th>Search words</th><th>Journals</th><th>Last run</th><th>New last run</th><th></th></tr></thead>
   <tbody id="wb"></tbody>
 </table></div>
+</div>
 
+<div class="card">
 <h2>My most recently collected emails</h2>
 <div class="tw"><table>
   <thead><tr><th>Author</th><th>Email</th><th>Article</th><th>Search word</th><th>Added</th></tr></thead>
   <tbody id="tb"></tbody>
 </table></div>
+</div>
 
 <script>
 const $ = id => document.getElementById(id);
@@ -901,18 +1112,70 @@ function params() {
   return {
     terms: $("terms").value.split("\n").map(s => s.trim()).filter(Boolean),
     journals: selectedJournals(),
-    mode: $("mode").value,
     oa: $("oa").checked,
     syn: $("syn").checked,
-    from: parseInt($("from").value) || 2024,
-    to: parseInt($("to").value) || 2026,
+    from: $("from").value || "2024-01-01",
+    to: $("to").value || "2026-12-31",
     max: parseInt($("max").value) || 0,
   };
 }
 
+const fmt = v => (v === null || v === undefined) ? "-" : (typeof v === "number" ? v.toLocaleString() : v);
+function renderTermStats(rows) {
+  const tb = $("termsBody"); tb.innerHTML = "";
+  rows.forEach(r => {
+    const tr = document.createElement("tr");
+    const cells = r.error
+      ? [r.term, "error: " + r.error, "-", "-", "-"]
+      : [r.term, fmt(r.all_hits), fmt(r.new_articles), fmt(r.new_emails), fmt(r.skipped)];
+    cells.forEach(v => { const td = document.createElement("td"); td.textContent = v; tr.appendChild(td); });
+    tb.appendChild(tr);
+  });
+}
+function hitcountURL(term, p) {
+  const q = new URLSearchParams();
+  q.set("term", term); q.set("oa", p.oa ? "1" : "0");
+  q.set("syn", p.syn ? "1" : "0"); q.set("from", p.from); q.set("to", p.to);
+  p.journals.forEach(j => q.append("journal", j));
+  return "/api/hitcount?" + q.toString();
+}
+async function checkMatches() {
+  const p = params();
+  if (!p.terms.length) { $("status").textContent = "Please enter at least one search word."; return; }
+  $("status").textContent = "Counting matches on Europe PMC...";
+  const rows = [];
+  for (const term of p.terms) {
+    try {
+      const d = await (await fetch(hitcountURL(term, p))).json();
+      rows.push(d.error ? { term, error: d.error } : { term, all_hits: d.hitCount, new_articles: null, new_emails: null, skipped: null });
+    } catch (e) {
+      rows.push({ term, error: e.message });
+    }
+    renderTermStats(rows);
+  }
+  $("status").textContent = "Done counting. Click Start to collect emails.";
+}
+
+// Single button: Start -> Pause (while running) -> Resume (after paused) -> Pause -> ...
+// "Pause" just stops the current job early; since progress is saved as it
+// goes, clicking "Resume" (which re-runs the same search) picks up exactly
+// where it left off instead of starting over. The separate "Stop" button
+// aborts instead: it also halts the job, but forgets where it was up to, so
+// the next Start begins that search from scratch. Either way, anything
+// already collected before stopping/pausing stays collected.
+let runState = "idle"; // idle | running | paused
+function setRunButton() {
+  const b = $("go");
+  if (runState === "running") { b.textContent = "Pause"; b.disabled = false; }
+  else if (runState === "paused") { b.textContent = "Resume"; b.disabled = false; }
+  else { b.textContent = "Start"; b.disabled = false; }
+  $("stopBtn").disabled = (runState === "idle");
+}
+
 function beginPolling(job_id) {
   currentJob = job_id;
-  $("go").disabled = true; $("stop").disabled = false; $("dlRun").disabled = true;
+  runState = "running"; setRunButton();
+  $("dlRun").disabled = true;
   poll = setInterval(checkJob, 1500);
 }
 
@@ -924,18 +1187,30 @@ async function start() {
   if (d.error) { $("status").textContent = "Error: " + d.error; return; }
   beginPolling(d.job_id);
 }
+async function pause() {
+  if (currentJob) await fetch("/api/job/" + currentJob + "/stop", { method: "POST" });
+}
+async function goButtonClick() {
+  if (runState === "running") await pause();
+  else await start(); // covers both "Start" (idle) and "Resume" (paused) - same action, same query resumes from saved progress
+}
+async function abortJob() {
+  if (!currentJob) return;
+  $("status").textContent = "Stopping...";
+  await fetch("/api/job/" + currentJob + "/abort", { method: "POST" });
+}
 async function checkJob() {
   if (!currentJob) return;
   const d = await (await fetch("/api/job/" + currentJob)).json();
   $("status").textContent = d.status || "";
-  if (d.state === "done" || d.state === "stopped" || d.state === "error") {
-    clearInterval(poll); $("go").disabled = false; $("stop").disabled = true;
-    if (d.state === "done") $("dlRun").disabled = false;
+  if (d.result && d.result.per_term) renderTermStats(d.result.per_term);
+  if (d.state === "done" || d.state === "stopped" || d.state === "error" || d.state === "aborted") {
+    clearInterval(poll);
+    runState = (d.state === "stopped") ? "paused" : "idle";
+    setRunButton();
+    if (d.state === "done" || d.state === "aborted") $("dlRun").disabled = false;
     loadStats(); loadRecent(); loadWatches();
   }
-}
-async function stop() {
-  if (currentJob) await fetch("/api/job/" + currentJob + "/stop", { method: "POST" });
 }
 async function watchThis() {
   const p = params();
@@ -947,13 +1222,23 @@ async function watchThis() {
   $("status").textContent = "Saved. Collecting every currently matching article now...";
   if (d.job_id) beginPolling(d.job_id);
 }
+async function clearHistory() {
+  if (!confirm("Clear everything you've collected on this browser (articles, emails, and search progress)? This can't be undone. Your watched searches are kept.")) return;
+  await fetch("/api/clear", { method: "POST" });
+  $("termsBody").innerHTML = ""; $("status").textContent = "History cleared.";
+  $("dlRun").disabled = true; currentJob = null; runState = "idle"; setRunButton();
+  loadStats(); loadRecent();
+}
 
-$("go").onclick = start;
-$("stop").onclick = stop;
+$("go").onclick = goButtonClick;
+$("stopBtn").onclick = abortJob;
+$("checkBtn").onclick = checkMatches;
 $("watchBtn").onclick = watchThis;
 $("dlRun").onclick = () => { if (currentJob) location.href = "/api/download/job/" + currentJob + ".csv"; };
 $("dlAll").onclick = () => { location.href = "/api/download.csv"; };
+$("clearBtn").onclick = clearHistory;
 
+setRunButton();
 loadJournals(); loadStats(); loadRecent(); loadWatches();
 setInterval(loadStats, 30000);
 </script>
