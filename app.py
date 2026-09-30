@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Europe PMC Author Email Collector - production server (v4)
+Europe PMC Author Email Collector - production server (v5)
 
 What this is
   A small Flask web app, backed by SQLite, that:
@@ -11,15 +11,13 @@ What this is
     - Lets you pick journals/publishers from a dropdown (loaded from
       journals.json, built from your spreadsheet) instead of typing links
     - Searches Europe PMC for any keyword(s) - "nano", "bio chemistry",
-      "artificial intelligence", anything
+      "artificial intelligence", anything - across all years by default;
+      an optional date range narrows it down further, only if you set one
+    - Shows the total match count for each search word automatically as you
+      type, before you commit to collecting anything
     - Never re-collects an article you've already collected in an earlier
       run of the same (or overlapping) search
-    - Lets you "watch" a search. The moment you do, it immediately collects
-      every article that currently matches (so you're not just waiting for
-      new ones) - and after that, a background thread re-checks every few
-      hours and pulls in anything newly published, automatically.
-    - Gives you two separate downloads: the emails from just your last run,
-      and every email you've collected across all your runs.
+    - Lets you download the emails found by your most recent run
 
 Run locally
   pip install -r requirements.txt
@@ -55,8 +53,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.environ.get("EPMC_DB_PATH", os.path.join(BASE_DIR, "collector.db"))
 JOURNALS_FILE = os.path.join(BASE_DIR, "journals.json")
 UPSTREAM = os.environ.get("EPMC_UPSTREAM", "https://www.ebi.ac.uk/europepmc/webservices/rest")
-UA = "europepmc-author-email-collector/4.0"
-REFRESH_INTERVAL_SECONDS = int(os.environ.get("EPMC_REFRESH_SECONDS", 6 * 3600))  # 6 hours
+UA = "europepmc-author-email-collector/5.0"
 MAX_CONCURRENT_JOBS = int(os.environ.get("EPMC_MAX_JOBS", 2))
 # Fetching each article's full-text XML is the slow part (one network round
 # trip per article). Doing them concurrently instead of one-at-a-time is
@@ -157,20 +154,6 @@ def init_db():
                 updated_at TEXT,
                 PRIMARY KEY (user_id, qkey)
             );
-            CREATE TABLE IF NOT EXISTS watches (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id TEXT,
-                terms TEXT,        -- JSON list of search words
-                journals TEXT,     -- JSON list of selected journal names
-                oa INTEGER,
-                syn INTEGER,
-                from_date TEXT,     -- 'YYYY-MM-DD'
-                to_date TEXT,       -- 'YYYY-MM-DD'
-                created_at TEXT,
-                last_run_at TEXT,
-                last_new_count INTEGER DEFAULT 0
-            );
-            CREATE INDEX IF NOT EXISTS idx_watches_user ON watches(user_id);
             """
         )
         conn.commit()
@@ -334,27 +317,33 @@ SOURCE_FILTERS = {
 }
 
 
-def _norm_date(d, fallback):
-    """Accepts 'YYYY-MM-DD' (from the date picker) or a bare year; returns
-    'YYYY-MM-DD' for the query. Falls back to `fallback` if empty/unparsable."""
+def _date_bound(d, open_end):
+    """Turn what's in a date field into a bound for FIRST_PDATE, or None if
+    the field is empty (meaning "no limit on this side")."""
     d = (d or "").strip()
+    if not d:
+        return None
     if re.fullmatch(r"\d{4}-\d{2}-\d{2}", d):
         return d
     if re.fullmatch(r"\d{4}", d):
-        return d + fallback[4:]  # bare year -> reuse fallback's month/day (01-01 or 12-31)
-    return fallback
+        return d + ("-12-31" if open_end else "-01-01")
+    return None
 
 
 def build_query(term, journals, oa, from_date, to_date):
-    from_date = _norm_date(from_date, "2024-01-01")
-    to_date = _norm_date(to_date, "2026-12-31")
     if re.search(r"\b(AND|OR|NOT)\b|[\"():\[\]]", term):
         core = f"({term})"  # already advanced Europe PMC syntax - use as typed
     elif len(term.split()) == 1:
         core = term
     else:
         core = f'"{term}"'  # multiple words -> exact phrase, not "any word matches"
-    q = f"{core} AND (FIRST_PDATE:[{from_date} TO {to_date}])"
+    q = core
+    lo = _date_bound(from_date, open_end=False)
+    hi = _date_bound(to_date, open_end=True)
+    if lo or hi:
+        # No date filter at all by default - only add one once the person
+        # actually fills in a from/to date. An open side uses "*" (no bound).
+        q += f" AND (FIRST_PDATE:[{lo or '*'} TO {hi or '*'}])"
     if journals:
         clauses = []
         for j in journals:
@@ -471,7 +460,7 @@ def fetch_rows_for_record(rec):
 
 
 def run_search(job_id, user_id, terms, journals, oa, syn, from_date, to_date, max_per_term, stop_flag):
-    """Core scan loop, shared by manual jobs, watch creation, and the auto-refresh scheduler."""
+    """Core scan loop, shared by manual runs and their pause/resume."""
     total_new_articles = 0
     total_new_emails = 0
     per_term = []
@@ -501,6 +490,7 @@ def run_search(job_id, user_id, terms, journals, oa, syn, from_date, to_date, ma
         cursor = prog["cursor"] if prog and not prog["finished"] else "*"
         scanned = prog["scanned"] if prog and not prog["finished"] else 0
         new_art, new_em, skipped = 0, 0, 0
+        note = None
 
         while not (stop_flag and stop_flag.is_set()):
             if max_per_term and new_art >= max_per_term:
@@ -512,11 +502,22 @@ def run_search(job_id, user_id, terms, journals, oa, syn, from_date, to_date, ma
             if syn:
                 url += "&synonym=true"
             try:
-                data = http_get_json(url, tries=(4 if cursor == "*" else 1))
-            except Exception:
-                if cursor != "*":
-                    cursor, scanned = "*", 0
-                    continue
+                data = http_get_json(url, tries=4)
+            except Exception as e:
+                # Stop this search word here rather than crashing the whole
+                # job. Deliberately do NOT reset the cursor back to the
+                # start - that would silently re-scan everything already
+                # done and, if Europe PMC keeps failing at this same point
+                # (e.g. a deep-pagination limit on very large result sets),
+                # would retry forever instead of stopping. Leaving the
+                # cursor untouched means a later run can safely try again
+                # from exactly this spot.
+                note = (f"Stopped after {new_art:,} articles - Europe PMC stopped responding "
+                        f"at this point ({e}). Already-collected results are kept; running this "
+                        f"search again will pick up from here.")
+                with JOBS_LOCK:
+                    if job_id in JOBS:
+                        JOBS[job_id]["status"] = f'"{term}": {note}'
                 break
             results = data.get("resultList", {}).get("result", [])
             if not results:
@@ -599,8 +600,11 @@ def run_search(job_id, user_id, terms, journals, oa, syn, from_date, to_date, ma
         conn.close()
         total_new_articles += new_art
         total_new_emails += new_em
-        per_term.append({"term": term, "all_hits": all_hits, "new_articles": new_art,
-                          "new_emails": new_em, "skipped": skipped})
+        entry = {"term": term, "all_hits": all_hits, "new_articles": new_art,
+                 "new_emails": new_em, "skipped": skipped}
+        if note:
+            entry["note"] = note
+        per_term.append(entry)
 
     return {"new_articles": total_new_articles, "new_emails": total_new_emails, "per_term": per_term}
 
@@ -624,14 +628,14 @@ def job_worker(job_id, params):
             JOBS[job_id]["status"] = f"Error: {e}"
 
 
-def start_job(user_id, terms, journals, oa, syn, from_date, to_date, max_per_term, watch_id=None):
+def start_job(user_id, terms, journals, oa, syn, from_date, to_date, max_per_term):
     """Common helper: register a job and run it in a background thread. Returns job_id."""
     job_id = new_job_id()
     stop_flag = threading.Event()
     with JOBS_LOCK:
         JOBS[job_id] = {
             "state": "queued", "status": "Queued...", "stop_flag": stop_flag,
-            "user_id": user_id, "watch_id": watch_id,
+            "user_id": user_id,
         }
     params = dict(
         user_id=user_id, terms=terms, journals=journals, oa=oa, syn=syn,
@@ -640,57 +644,6 @@ def start_job(user_id, terms, journals, oa, syn, from_date, to_date, max_per_ter
     t = threading.Thread(target=job_worker, args=(job_id, params), daemon=True)
     t.start()
     return job_id
-
-
-# ----------------------------------------------------------------- watches
-def run_watch_now(w, existing_job_id=None):
-    """Run a watch's search immediately (used both right after creating a watch,
-    and by the scheduler). Updates the watch's last_run_at / last_new_count."""
-    terms = json.loads(w["terms"])
-    journals = json.loads(w["journals"])
-    job_id = existing_job_id or new_job_id()
-    stop_flag = threading.Event()
-    with JOBS_LOCK:
-        JOBS.setdefault(job_id, {})
-        JOBS[job_id].update({
-            "state": "running", "status": "Collecting matching articles...",
-            "stop_flag": stop_flag, "watch_id": w["id"], "user_id": w["user_id"],
-        })
-    result = run_search(
-        job_id=job_id, user_id=w["user_id"], terms=terms, journals=journals,
-        oa=bool(w["oa"]), syn=bool(w["syn"]), from_date=w["from_date"], to_date=w["to_date"],
-        max_per_term=0, stop_flag=stop_flag,
-    )
-    conn = get_conn()
-    conn.execute(
-        "UPDATE watches SET last_run_at=?, last_new_count=? WHERE id=?",
-        (now_iso(), result["new_emails"], w["id"]),
-    )
-    conn.commit()
-    conn.close()
-    with JOBS_LOCK:
-        JOBS[job_id]["state"] = "done"
-        JOBS[job_id]["result"] = result
-        JOBS[job_id]["status"] = (
-            f"Finished. {result['new_articles']} articles processed, {result['new_emails']} new emails."
-        )
-    return job_id
-
-
-def scheduler_loop():
-    while True:
-        time.sleep(REFRESH_INTERVAL_SECONDS)
-        try:
-            conn = get_conn()
-            watches = conn.execute("SELECT * FROM watches").fetchall()
-            conn.close()
-            for w in watches:
-                try:
-                    run_watch_now(w)
-                except Exception as e:
-                    print(f"Scheduler error on watch {w['id']}:", e)
-        except Exception as e:
-            print("Scheduler error:", e)
 
 
 # ------------------------------------------------------------------- routes
@@ -710,8 +663,8 @@ def api_hitcount():
     journals = request.args.getlist("journal")
     oa = request.args.get("oa") == "1"
     syn = request.args.get("syn") == "1"
-    from_date = request.args.get("from", "2024-01-01")
-    to_date = request.args.get("to", "2026-12-31")
+    from_date = request.args.get("from", "")
+    to_date = request.args.get("to", "")
     if not term:
         return jsonify({"error": "missing term"}), 400
     q = build_query(term, journals, oa, from_date, to_date)
@@ -734,8 +687,8 @@ def api_run():
         journals=body.get("journals", []),
         oa=bool(body.get("oa", True)),
         syn=bool(body.get("syn", True)),
-        from_date=body.get("from", "2024-01-01"),
-        to_date=body.get("to", "2026-12-31"),
+        from_date=body.get("from", ""),
+        to_date=body.get("to", ""),
         max_per_term=int(body.get("max", 200)),
     )
     return jsonify({"job_id": job_id})
@@ -800,8 +753,7 @@ def api_job_abort(job_id):
 @app.route("/api/clear", methods=["POST"])
 def api_clear():
     """Clear my history: wipes this browser's collected articles/emails and
-    resume-progress. Does not touch other visitors' data, and does not
-    delete watched searches (those are active settings, not history)."""
+    resume-progress. Does not touch other visitors' data."""
     conn = get_conn()
     conn.execute("DELETE FROM articles WHERE user_id=?", (g.user_id,))
     conn.execute("DELETE FROM emails WHERE user_id=?", (g.user_id,))
@@ -848,17 +800,6 @@ def _emails_csv(rows, filename):
     )
 
 
-@app.route("/api/download.csv")
-def api_download_all():
-    """Every email this user (this browser) has ever collected, across all runs."""
-    conn = get_conn()
-    rows = conn.execute(
-        "SELECT * FROM emails WHERE user_id=? ORDER BY added_at", (g.user_id,)
-    ).fetchall()
-    conn.close()
-    return _emails_csv(rows, "authors_emails_ALL.csv")
-
-
 @app.route("/api/download/job/<job_id>.csv")
 def api_download_job(job_id):
     """Only the emails that THIS specific run added (new emails only - an
@@ -869,67 +810,6 @@ def api_download_job(job_id):
     ).fetchall()
     conn.close()
     return _emails_csv(rows, f"authors_emails_{job_id}.csv")
-
-
-@app.route("/api/watches", methods=["GET", "POST"])
-def api_watches():
-    user_id = g.user_id
-    conn = get_conn()
-    if request.method == "POST":
-        body = request.get_json(force=True)
-        terms = [t.strip() for t in body.get("terms", []) if t.strip()]
-        if not terms:
-            conn.close()
-            return jsonify({"error": "no search words given"}), 400
-        conn.execute(
-            "INSERT INTO watches (user_id, terms, journals, oa, syn, from_date, to_date, created_at) "
-            "VALUES (?,?,?,?,?,?,?,?)",
-            (
-                user_id,
-                json.dumps(terms),
-                json.dumps(body.get("journals", [])),
-                int(bool(body.get("oa", True))),
-                int(bool(body.get("syn", True))),
-                body.get("from", "2024-01-01"),
-                body.get("to", "2026-12-31"),
-                now_iso(),
-            ),
-        )
-        conn.commit()
-        watch_id = conn.execute("SELECT last_insert_rowid() id").fetchone()["id"]
-        w = conn.execute("SELECT * FROM watches WHERE id=?", (watch_id,)).fetchone()
-        conn.close()
-
-        # Immediately collect everything that currently matches - don't make
-        # the person wait for the next scheduled refresh to see anything.
-        job_id = new_job_id()
-        stop_flag = threading.Event()
-        with JOBS_LOCK:
-            JOBS[job_id] = {
-                "state": "queued", "status": "Collecting every currently matching article...",
-                "stop_flag": stop_flag, "watch_id": watch_id, "user_id": user_id,
-            }
-        threading.Thread(target=lambda: run_watch_now(dict(w), existing_job_id=job_id), daemon=True).start()
-        return jsonify({"id": watch_id, "job_id": job_id})
-
-    rows = conn.execute("SELECT * FROM watches WHERE user_id=? ORDER BY id DESC", (user_id,)).fetchall()
-    conn.close()
-    out = []
-    for r in rows:
-        d = dict(r)
-        d["terms"] = json.loads(d["terms"])
-        d["journals"] = json.loads(d["journals"])
-        out.append(d)
-    return jsonify(out)
-
-
-@app.route("/api/watches/<int:watch_id>", methods=["DELETE"])
-def api_watch_delete(watch_id):
-    conn = get_conn()
-    conn.execute("DELETE FROM watches WHERE id=? AND user_id=?", (watch_id, g.user_id))
-    conn.commit()
-    conn.close()
-    return jsonify({"ok": True})
 
 
 # ---------------------------------------------------------------------- page
@@ -1001,49 +881,36 @@ PAGE = r"""<!DOCTYPE html>
 <h2>Search</h2>
 <label for="terms">Search words (one per line)</label>
 <textarea id="terms" placeholder="e.g. nano materials&#10;bio chemistry&#10;artificial intelligence"></textarea>
+<div class="hint" style="margin-top:4px;">Searches every year by default. Set a date range below only if you want to narrow it down.</div>
 
 <label for="journalFilter">Journals / publishers (optional - pick from your list, or leave empty for all)</label>
 <input type="text" id="journalFilter" placeholder="Type to filter the list below...">
 <div id="journalBox"></div>
 
 <div class="row">
-  <div><label for="from">From date</label><input type="date" id="from" value="2024-01-01"></div>
-  <div><label for="to">To date</label><input type="date" id="to" value="2026-12-31"></div>
-  <div><label for="max">Max NEW articles per search word (0 = all remaining)</label><input type="number" id="max" value="200" min="0"></div>
+  <div><label for="from">From date <span class="hint">(optional)</span></label><input type="date" id="from"></div>
+  <div><label for="to">To date <span class="hint">(optional)</span></label><input type="date" id="to"></div>
+  <div><label for="max">Max NEW articles per search word (0 = all)</label><input type="number" id="max" value="0" min="0"></div>
 </div>
+
+<div class="tw" style="margin-top:14px;"><table>
+  <thead><tr><th>Search word</th><th>Total matches on Europe PMC</th><th>New articles this run</th><th>New emails this run</th><th>Already collected (skipped)</th></tr></thead>
+  <tbody id="termsBody"></tbody>
+</table></div>
 
 <label class="chk"><input type="checkbox" id="oa" checked> Open-access articles only (full text available, far more emails)</label>
 <label class="chk"><input type="checkbox" id="syn" checked> Include synonyms</label>
 
 <div class="btn-row">
-  <button id="checkBtn" class="sec">Check matches</button>
   <button id="go">Start</button>
   <button id="stopBtn" class="sec" disabled>Stop</button>
-  <button id="watchBtn" class="sec">Auto-refresh this search</button>
 </div>
 <div class="btn-row">
-  <button id="dlRun" class="sec" disabled>Download this run (CSV)</button>
-  <button id="dlAll" class="sec">Download all my collected data (CSV)</button>
+  <button id="dlRun" class="sec" disabled>Download (CSV)</button>
   <button id="clearBtn" class="danger">Clear my history</button>
 </div>
 
 <div id="status"></div>
-</div>
-
-<div class="card">
-<h2>Search word results</h2>
-<div class="tw"><table>
-  <thead><tr><th>Search word</th><th>Total matches on Europe PMC</th><th>New articles this run</th><th>New emails this run</th><th>Already collected (skipped)</th></tr></thead>
-  <tbody id="termsBody"></tbody>
-</table></div>
-</div>
-
-<div class="card">
-<h2>My watched searches (auto-updated in the background)</h2>
-<div class="tw"><table>
-  <thead><tr><th>Search words</th><th>Journals</th><th>Last run</th><th>New last run</th><th></th></tr></thead>
-  <tbody id="wb"></tbody>
-</table></div>
 </div>
 
 <div class="card">
@@ -1053,6 +920,7 @@ PAGE = r"""<!DOCTYPE html>
   <tbody id="tb"></tbody>
 </table></div>
 </div>
+
 
 <script>
 const $ = id => document.getElementById(id);
@@ -1070,6 +938,7 @@ function renderJournals(filterText) {
     if (j.category !== lastCat) { const h = document.createElement("div"); h.className = "catHead"; h.textContent = j.category; box.appendChild(h); lastCat = j.category; }
     const lab = document.createElement("label");
     const cb = document.createElement("input"); cb.type = "checkbox"; cb.value = j.name; cb.dataset.journal = "1";
+    cb.addEventListener("change", scheduleAutoCheck);
     lab.appendChild(cb); lab.appendChild(document.createTextNode(j.name));
     box.appendChild(lab);
   });
@@ -1092,21 +961,6 @@ async function loadRecent() {
     $("tb").appendChild(tr);
   });
 }
-async function loadWatches() {
-  const rows = await (await fetch("/api/watches")).json();
-  $("wb").innerHTML = "";
-  rows.forEach(w => {
-    const tr = document.createElement("tr");
-    const cells = [w.terms.join(", "), (w.journals.length ? w.journals.join(", ") : "(all)"),
-                   (w.last_run_at || "never").replace("T"," ").slice(0,16), w.last_new_count ?? 0];
-    cells.forEach(v => { const td = document.createElement("td"); td.textContent = v; tr.appendChild(td); });
-    const td = document.createElement("td");
-    const b = document.createElement("button"); b.className = "sec"; b.textContent = "Remove"; b.style.margin = "0";
-    b.onclick = async () => { await fetch("/api/watches/" + w.id, { method: "DELETE" }); loadWatches(); };
-    td.appendChild(b); tr.appendChild(td);
-    $("wb").appendChild(tr);
-  });
-}
 
 function params() {
   return {
@@ -1114,8 +968,8 @@ function params() {
     journals: selectedJournals(),
     oa: $("oa").checked,
     syn: $("syn").checked,
-    from: $("from").value || "2024-01-01",
-    to: $("to").value || "2026-12-31",
+    from: $("from").value || "",
+    to: $("to").value || "",
     max: parseInt($("max").value) || 0,
   };
 }
@@ -1129,6 +983,7 @@ function renderTermStats(rows) {
       ? [r.term, "error: " + r.error, "-", "-", "-"]
       : [r.term, fmt(r.all_hits), fmt(r.new_articles), fmt(r.new_emails), fmt(r.skipped)];
     cells.forEach(v => { const td = document.createElement("td"); td.textContent = v; tr.appendChild(td); });
+    if (r.note) { const td = document.createElement("td"); td.textContent = r.note; td.style.whiteSpace = "normal"; tr.appendChild(td); }
     tb.appendChild(tr);
   });
 }
@@ -1139,22 +994,33 @@ function hitcountURL(term, p) {
   p.journals.forEach(j => q.append("journal", j));
   return "/api/hitcount?" + q.toString();
 }
-async function checkMatches() {
+
+// Counts update automatically as you type/change filters - no button needed.
+let autoCheckTimer = null, autoCheckSeq = 0;
+function scheduleAutoCheck() {
+  clearTimeout(autoCheckTimer);
+  autoCheckTimer = setTimeout(autoCheckMatches, 500);
+}
+async function autoCheckMatches() {
+  const mySeq = ++autoCheckSeq;
   const p = params();
-  if (!p.terms.length) { $("status").textContent = "Please enter at least one search word."; return; }
-  $("status").textContent = "Counting matches on Europe PMC...";
+  if (!p.terms.length) { renderTermStats([]); return; }
   const rows = [];
   for (const term of p.terms) {
+    if (mySeq !== autoCheckSeq) return; // a newer keystroke superseded this check
     try {
       const d = await (await fetch(hitcountURL(term, p))).json();
+      if (mySeq !== autoCheckSeq) return;
       rows.push(d.error ? { term, error: d.error } : { term, all_hits: d.hitCount, new_articles: null, new_emails: null, skipped: null });
     } catch (e) {
+      if (mySeq !== autoCheckSeq) return;
       rows.push({ term, error: e.message });
     }
     renderTermStats(rows);
   }
-  $("status").textContent = "Done counting. Click Start to collect emails.";
 }
+$("terms").addEventListener("input", scheduleAutoCheck);
+["oa", "syn", "from", "to"].forEach(id => $(id).addEventListener("change", scheduleAutoCheck));
 
 // Single button: Start -> Pause (while running) -> Resume (after paused) -> Pause -> ...
 // "Pause" just stops the current job early; since progress is saved as it
@@ -1209,21 +1075,11 @@ async function checkJob() {
     runState = (d.state === "stopped") ? "paused" : "idle";
     setRunButton();
     if (d.state === "done" || d.state === "aborted") $("dlRun").disabled = false;
-    loadStats(); loadRecent(); loadWatches();
+    loadStats(); loadRecent();
   }
 }
-async function watchThis() {
-  const p = params();
-  if (!p.terms.length) { $("status").textContent = "Please enter at least one search word."; return; }
-  const r = await fetch("/api/watches", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(p) });
-  const d = await r.json();
-  if (d.error) { $("status").textContent = "Error: " + d.error; return; }
-  loadWatches();
-  $("status").textContent = "Saved. Collecting every currently matching article now...";
-  if (d.job_id) beginPolling(d.job_id);
-}
 async function clearHistory() {
-  if (!confirm("Clear everything you've collected on this browser (articles, emails, and search progress)? This can't be undone. Your watched searches are kept.")) return;
+  if (!confirm("Clear everything you've collected on this browser (articles, emails, and search progress)? This can't be undone.")) return;
   await fetch("/api/clear", { method: "POST" });
   $("termsBody").innerHTML = ""; $("status").textContent = "History cleared.";
   $("dlRun").disabled = true; currentJob = null; runState = "idle"; setRunButton();
@@ -1232,14 +1088,11 @@ async function clearHistory() {
 
 $("go").onclick = goButtonClick;
 $("stopBtn").onclick = abortJob;
-$("checkBtn").onclick = checkMatches;
-$("watchBtn").onclick = watchThis;
 $("dlRun").onclick = () => { if (currentJob) location.href = "/api/download/job/" + currentJob + ".csv"; };
-$("dlAll").onclick = () => { location.href = "/api/download.csv"; };
 $("clearBtn").onclick = clearHistory;
 
 setRunButton();
-loadJournals(); loadStats(); loadRecent(); loadWatches();
+loadJournals(); loadStats(); loadRecent();
 setInterval(loadStats, 30000);
 </script>
 </body>
@@ -1247,9 +1100,6 @@ setInterval(loadStats, 30000);
 """
 
 init_db()
-
-if os.environ.get("EPMC_RUN_SCHEDULER", "1") == "1":
-    threading.Thread(target=scheduler_loop, daemon=True).start()
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))

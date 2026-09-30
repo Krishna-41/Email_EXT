@@ -221,6 +221,35 @@ crashes or reboots).
   clear boundaries, tidier spacing and typography, so it's easier to scan at
   a glance.
 
+## Latest changes
+- **No default date range.** Searching a keyword now fetches matches across
+  all years by default and shows the total count immediately. A from/to date
+  only gets applied once you actually fill one in - and you can fill in just
+  one side (e.g. only "from") to mean "since then, with no upper limit."
+- **Counts appear automatically as you type** - no button to click. Half a
+  second after you stop typing (or change a filter, journal, open-access, or
+  synonyms setting), the total-match count updates for every search word on
+  its own.
+- **Auto-refresh removed.** The "watch a search" feature (and its background
+  scheduler) has been taken out entirely, along with its button and table.
+  If you want new articles picked up automatically again later, this can be
+  added back in - just ask.
+- **One download button.** It downloads the emails from your most recent
+  run only. The separate "download everything ever collected" button and
+  endpoint have been removed.
+- **Fixed the error on very large runs.** The bug: if Europe PMC ever failed
+  to respond partway through a big fetch (say, after 10,000 articles), the
+  app used to silently jump back to page one and start re-scanning from the
+  beginning - and if that same failure point kept failing, it would loop
+  forever, which is what you were seeing as a stuck/error state. It no
+  longer does that: on a failure like this, it now stops that search word
+  cleanly, keeps everything already collected, and shows a plain-English
+  note ("Stopped after 8,742 articles - Europe PMC stopped responding at
+  this point..."). Running the same search again resumes from exactly that
+  point rather than starting over. Retries were also made more persistent
+  (every page gets up to 4 attempts now, not just the first one), so this
+  should trigger far less often in the first place.
+
 ## Notes and honest limitations
 - The journal dropdown filters by Europe PMC's `JOURNAL:` and `PUBLISHER:`
   fields. Real journal titles (e.g. "Natural and Engineering Sciences") match
@@ -246,9 +275,16 @@ crashes or reboots).
   with a small search (a handful of articles) before relying on it for a
   big run.
 - If you ran an earlier version of this app and already have a `collector.db`
-  file from testing, **delete it** before your real deployment - this
-  version's `watches` table has different columns (real dates instead of
-  years) and old rows won't match.
+  file from testing, **delete it** before your real deployment - the
+  `watches` table has been removed entirely, and old rows from a previous
+  schema won't match.
+- If Europe PMC itself has a hard limit on how deep you can page into a
+  huge result set (common in search systems generally, often somewhere
+  around 10,000), the app now handles that gracefully rather than crashing,
+  but it can't make Europe PMC return more than it's willing to. If you
+  consistently hit the same wall on a very large search, narrowing it with
+  a date range or a journal filter (splitting one huge search into several
+  smaller ones) is the practical workaround.
 - The email cleanup fixes the case that was actually reported (a tag right
   next to an email, with no whitespace text node between them, which is the
   common case in real journal XML). It can't fully fix an email and the next
