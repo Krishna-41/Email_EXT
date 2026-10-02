@@ -250,6 +250,44 @@ crashes or reboots).
   (every page gets up to 4 attempts now, not just the first one), so this
   should trigger far less often in the first place.
 
+## Latest change: surviving an accidental reload or closed tab
+While a search is actively running, trying to reload the page, close the
+tab, or close the browser now triggers the browser's own "leave site?"
+confirmation - the same kind of prompt sites show when you'd lose unsaved
+work. If the person cancels, nothing happens and the search keeps running.
+If they go ahead anyway, a tiny background request tells the server to
+pause (not abort) right as the page unloads, so nothing is lost - just
+interrupted, exactly like clicking Pause. Reopening the page then restores
+the search words and filters automatically and shows a "Resume" button
+instead of a blank form. Tested end-to-end with a real browser (reload
+mid-run, then clicking Resume) to confirm it picks up the remaining
+articles with nothing missed and nothing double-counted.
+
+**Important limitation, found after testing this against a real browser:**
+the native "leave site?" popup is controlled entirely by the browser, and
+browsers have been steadily restricting when they'll show it - most
+noticeably, **closing a tab is the least reliable trigger of all.** Chrome,
+Firefox and Safari have all moved toward *not* showing this prompt for a
+plain tab close in various recent versions (it's an intentional anti-nag
+policy - too many sites were abusing it to trap people from leaving), even
+though the same browsers may still show it for an in-page reload. There is
+no code a website can run to force this back on; it depends on the
+browser's own rules, which differ by browser and change over time.
+
+Because of that, this app no longer relies on the popup alone. Whenever a
+search is running, a visible banner now stays on the page the whole time,
+saying plainly that closing or reloading the tab will pause (not lose) the
+work. That part is fully within the app's control and was confirmed working
+end-to-end: it appears the moment a run starts and disappears the moment it
+stops. The popup may still appear in your browser as an extra layer - and
+if it does, its wording will always be the browser's own generic text
+("Changes you made may not be saved"), not this app's, since browsers
+stopped allowing custom text here for the same anti-abuse reasons - but
+either way, whether or not you ever see a popup, progress is protected
+through the same mechanism either way: a background request on page
+teardown pauses the job on the server, confirmed with a real browser to
+correctly save progress and let you Resume afterward.
+
 ## Notes and honest limitations
 - The journal dropdown filters by Europe PMC's `JOURNAL:` and `PUBLISHER:`
   fields. Real journal titles (e.g. "Natural and Engineering Sciences") match

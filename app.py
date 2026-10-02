@@ -861,6 +861,8 @@ PAGE = r"""<!DOCTYPE html>
   button.danger:hover:not(:disabled) { background: rgba(214,69,69,.08); }
   button:disabled { opacity: .4; cursor: default; }
   #status { margin: 14px 0 0; font-size: .88rem; min-height: 1.3em; opacity: .85; }
+  #runBanner { margin-top: 14px; padding: 9px 12px; border-radius: 7px; font-size: .82rem;
+    background: rgba(230,160,20,.12); border: 1px solid rgba(230,160,20,.4); }
   .tw { overflow-x: auto; border: 1px solid var(--bd); border-radius: 8px; max-height: 320px; overflow-y: auto; }
   table { border-collapse: collapse; width: 100%; font-size: .82rem; }
   th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--bd); white-space: nowrap; max-width: 320px; overflow: hidden; text-overflow: ellipsis; }
@@ -909,6 +911,8 @@ PAGE = r"""<!DOCTYPE html>
   <button id="dlRun" class="sec" disabled>Download (CSV)</button>
   <button id="clearBtn" class="danger">Clear my history</button>
 </div>
+
+<div id="runBanner" style="display:none;"></div>
 
 <div id="status"></div>
 </div>
@@ -1036,12 +1040,72 @@ function setRunButton() {
   else if (runState === "paused") { b.textContent = "Resume"; b.disabled = false; }
   else { b.textContent = "Start"; b.disabled = false; }
   $("stopBtn").disabled = (runState === "idle");
+  $("runBanner").style.display = (runState === "running") ? "block" : "none";
 }
+
+// --- Surviving an accidental reload/close -----------------------------
+// While a search is running, leaving the page (reload, closing the tab,
+// closing the browser) triggers the browser's own "are you sure?" prompt.
+// If the person goes ahead anyway, a tiny beacon request tells the server
+// to pause (not abort) the job - same as clicking Pause - so progress isn't
+// lost, just interrupted. The search words/filters are remembered too, so
+// reopening the page shows a Resume button instead of a blank form.
+const SAVE_KEY = "epmc_saved_search";
+
+function saveFormState() {
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify(params()));
+  } catch (e) { /* localStorage unavailable - not critical, just skip saving */ }
+}
+function restoreFormState() {
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem(SAVE_KEY) || "null"); } catch (e) {}
+  if (!saved) return false;
+  $("terms").value = saved.terms.join("\n");
+  $("from").value = saved.from || "";
+  $("to").value = saved.to || "";
+  $("max").value = saved.max || 0;
+  $("oa").checked = !!saved.oa;
+  $("syn").checked = !!saved.syn;
+  (saved.journals || []).forEach(name => {
+    const cb = [...document.querySelectorAll('#journalBox input[type=checkbox]')].find(c => c.value === name);
+    if (cb) cb.checked = true;
+  });
+  return true;
+}
+function markInterrupted(isRunning) {
+  try {
+    if (isRunning) localStorage.setItem(SAVE_KEY + "_running", "1");
+    else localStorage.removeItem(SAVE_KEY + "_running");
+  } catch (e) {}
+}
+function wasInterrupted() {
+  try { return localStorage.getItem(SAVE_KEY + "_running") === "1"; } catch (e) { return false; }
+}
+
+window.addEventListener("beforeunload", (e) => {
+  if (runState === "running") {
+    // Showing a custom message isn't possible in modern browsers (they
+    // always show their own generic wording), but returning a value here
+    // is what makes the "leave site? changes may not be saved" prompt
+    // appear at all.
+    e.preventDefault();
+    e.returnValue = "";
+  }
+});
+window.addEventListener("pagehide", () => {
+  if (runState === "running" && currentJob) {
+    // sendBeacon fires-and-forgets even as the page is unloading, unlike a
+    // normal fetch which the browser would otherwise cancel.
+    navigator.sendBeacon("/api/job/" + currentJob + "/stop");
+  }
+});
 
 function beginPolling(job_id) {
   currentJob = job_id;
   runState = "running"; setRunButton();
   $("dlRun").disabled = true;
+  saveFormState(); markInterrupted(true);
   poll = setInterval(checkJob, 1500);
 }
 
@@ -1063,6 +1127,7 @@ async function goButtonClick() {
 async function abortJob() {
   if (!currentJob) return;
   $("status").textContent = "Stopping...";
+  markInterrupted(false);
   await fetch("/api/job/" + currentJob + "/abort", { method: "POST" });
 }
 async function checkJob() {
@@ -1074,7 +1139,8 @@ async function checkJob() {
     clearInterval(poll);
     runState = (d.state === "stopped") ? "paused" : "idle";
     setRunButton();
-    if (d.state === "done" || d.state === "aborted") $("dlRun").disabled = false;
+    if (d.state === "done" || d.state === "aborted") { $("dlRun").disabled = false; markInterrupted(false); }
+    if (d.state === "stopped") markInterrupted(true); // still resumable, e.g. after a reload's pause-beacon
     loadStats(); loadRecent();
   }
 }
@@ -1083,6 +1149,7 @@ async function clearHistory() {
   await fetch("/api/clear", { method: "POST" });
   $("termsBody").innerHTML = ""; $("status").textContent = "History cleared.";
   $("dlRun").disabled = true; currentJob = null; runState = "idle"; setRunButton();
+  markInterrupted(false);
   loadStats(); loadRecent();
 }
 
@@ -1092,7 +1159,14 @@ $("dlRun").onclick = () => { if (currentJob) location.href = "/api/download/job/
 $("clearBtn").onclick = clearHistory;
 
 setRunButton();
-loadJournals(); loadStats(); loadRecent();
+loadJournals().then(() => {
+  if (restoreFormState() && wasInterrupted()) {
+    runState = "paused"; setRunButton();
+    $("status").textContent = "Your last search was interrupted (tab closed or page reloaded) before it finished. Click Resume to pick up where it left off.";
+    scheduleAutoCheck();
+  }
+});
+loadStats(); loadRecent();
 setInterval(loadStats, 30000);
 </script>
 </body>
